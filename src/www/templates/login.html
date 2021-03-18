@@ -1,0 +1,67 @@
+<html ng-app="LoginApp">
+<head>
+	<title>Stock Tracker</title>
+
+	<!--Bootstrap 4.2.1-->
+	<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+
+	<!--AngularJS and its extensions-->
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.7.0/angular.js"></script>
+
+	<!--Our Code-->
+	<script src="/js/login.js"></script>
+	<link rel="stylesheet" type="text/css" href="/css/stock_tracker.css">
+</head>
+
+<body ng-controller="LoginCtrl">
+	<div id="login-div" ng-show="!changePassword" class="login-modal">
+		<form ng-submit="doLogin()" class="login-content">
+			<h3>Sign In</h3>
+			<br>
+			<br>
+			<p>Username</p>
+			<input id="usernameInput" type="text" ng-model="username" tabindex="1" autofocus>
+			<br>
+			<br>
+			<div>
+				<label style="float: left; display: inline-block;">Password</label>
+				<label style="float: right; display: inline-block;">
+					<a href ng-click="changePassword=true" tabindex="4">Change password</a>
+				</label>
+			</div>
+			<input type="password" ng-model="password" tabindex="2">
+			<br>
+			<br>
+			<button type="submit" class="btn btn-success" tabindex="3">Login</button>
+			<br>
+			<br>
+		</form>
+	</div>
+	<div id="change-pass-div" ng-show="changePassword" class="login-modal">
+		<form ng-submit="doChange()" class="login-content" style="height: 440px;">
+			<h3>Change Password</h3>
+			<br>
+			<br>
+			<p>Username</p>
+			<input type="text" ng-model="username" tabindex="1">
+			<br>
+			<p>Current password</p>
+			<input type="password" ng-model="password" tabindex="2">
+			<br>
+			<br>
+			<p>New password</p>
+			<input type="password" ng-model="newPassword" tabindex="3">
+			<p>Verify password</p>
+			<input type="password" ng-model="verifyPassword" tabindex="4">
+			<h7 ng-show="newPassword != verifyPassword" style="color: red;">Passwords don't match</h7>
+			<br>
+			<br>
+			<div>
+				<button type="submit" class="btn btn-success" tabindex="5" ng-disabled="newPassword != verifyPassword">Change</button>
+				<button type="button" class="btn btn-danger" tabindex="6" ng-click="changePassword=false">Cancel</button>
+			</div>
+</body>
+
+</html>

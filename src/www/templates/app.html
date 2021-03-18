@@ -1,0 +1,75 @@
+<html ng-app="StockApp">
+<head>
+	<title>Stock Tracker</title>
+
+	<!--Bootstrap 4.2.1-->
+	<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.0/font/bootstrap-icons.css"> -->
+	<script src="https://code.jquery.com/jquery-3.3.1.min.js" crossorigin="anonymous"></script>
+	<!-- <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script> -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+
+
+	<!-- <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css"> -->
+	<!-- <link rel="stylesheet" type="text/css" href="/css/bootstrap_3.4.1_replacement2.css"> -->
+
+	<!--Bootstrap Datepicker-->
+<!-- 	<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" rel="stylesheet"/> -->
+
+	<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.7.1/js/bootstrap-datepicker.min.js"></script>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.7.1/css/bootstrap-datepicker.min.css" rel="stylesheet"/> -->
+
+	<!-- <link href="https://gitcdn.github.io/bootstrap-toggle/2.2.2/css/bootstrap-toggle.min.css" rel="stylesheet"> -->
+	<!-- <script src="https://gitcdn.github.io/bootstrap-toggle/2.2.2/js/bootstrap-toggle.min.js"></script> -->
+
+	<!-- amcharts 4 -->
+	<!-- <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script> -->
+	<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.0.0-beta/chart.min.js"></script> -->
+	<script src="https://cdn.jsdelivr.net/npm/luxon@1.24.1"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@3.0.0-beta.9/dist/chart.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@0.2.1"></script>
+	<script src="/js/chartjs-chart-financial.js" type="text/javascript"></script>
+
+	<!-- <script src="https://cdn.amcharts.com/lib/4/core.js"></script> -->
+	<!-- <script src="https://cdn.amcharts.com/lib/4/charts.js"></script> -->
+	<!-- <script src="https://cdn.amcharts.com/lib/4/themes/animated.js"></script> -->
+
+	<!--AngularJS and its extensions-->
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.7.0/angular.js"></script>
+
+	<!-- <script src="/js/ng-infinite-scroll.min.js"></script> -->
+	<!-- <script src="/js/infinite-scroll.js"></script> -->
+
+	<!-- Angular spinner -->
+	<!-- <script src="//cdnjs.cloudflare.com/ajax/libs/spin.js/1.2.7/spin.min.js"></script> -->
+	<!-- <script src="//rawgithub.com/darthwade/angular-loading/master/angular-loading.min.js"></script> -->
+	<!-- <link rel="stylesheet" type="text/css" href="//rawgithub.com/darthwade/angular-loading/master/angular-loading.css"/> -->
+
+	<!-- Angular lazy load -->
+	<!-- <script src="/js/angular-lazy-img.js"></script> -->
+
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css">
+
+	<!--Our Code-->
+	<script src="/js/app.js"></script>
+	<script src="/js/chart.js"></script>
+	<script src="/js/nav.js"></script>
+	<script src="/js/homelist.js"></script>
+	<script src="/js/research.js"></script>
+	<link rel="stylesheet" type="text/css" href="/css/stock_tracker.css">
+</head>
+
+<body>
+
+<%include file="nav.html"/>
+
+<div class="ng-cloak pageContent">
+	<%include file="homelist.html"/>
+	<%include file="research.html"/>
+</div>
+
+</body>
+
+</html>

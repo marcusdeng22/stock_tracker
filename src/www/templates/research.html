@@ -1,0 +1,154 @@
+<div id="researchDiv" ng-controller="researchCtrl as $ctrl" style="padding: 10px; width: 100%; height: 100%; display: table;">
+	<div class="research-row" style="height: 100%;">
+		<div style="display: table; border-collapse: collapse; table-layout: fixed; width: 100%;">
+			<div id="research-top" class="research-row" style="height: 50px;">
+				<div style="display: table-cell; margin: 5px; text-align: center;">
+					<input type="text" id="research-searchbar" data-toggle="dropdown" placeholder="Search for a ticker" ng-model="searchText" ng-model-options="{debounce: 500}" ng-change="searchTicker()" ng-enter="submitTicker(0, true)">
+					<div id="research-stock-list" class="dropdown-menu" ng-show="searchResults.length">
+						<div class="dropdown-item" ng-repeat="ticker in searchResults" ng-click="submitTicker($index)">
+								<div style="width: 70px;" class="infoLeft">{{ticker.ticker}}</div>
+								<div style="width: 340px; overflow-x: hidden; text-overflow: ellipsis;" class="infoLeft">{{ticker.name}}</div>
+								<div class="infoLeft">{{ticker.type}} - {{ticker.exchange}}</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div id="research-mid" class="research-row" style="height: 450px;">
+				<!-- ticker above table, chart to side, and notes/similar next to chart -->
+				<div style="display: table; border-collapse: collapse; table-layout: fixed; width: 100%; height: 450px;">
+					<div class="research-row">
+						<div class="researchCol" style="width: 33%;">
+							<div style="position: absolute; width: calc(33% - 15px); height: 440px;">
+								<div ng-show="!(ticker | isEmpty)" style="display: flex; flex-flow: column; height: 100%;">
+									<div style="width: 100%; height: 33px;">
+										<h3 class="infoLeft" style="margin: 0px;">{{ticker.ticker}}</h3>
+										<h6 class="infoRight" style="margin-top: 6px;">{{ticker.data.fields.quoteType}}</h6>
+									</div>
+									<h6 style="margin: 0px;">{{ticker.data.fields.name}}</h6>
+									<h3 style="margin: 0px;" ticker-color="ticker.data.change">{{ticker.data.lastPrice}}</h3>
+									<h4 style="margin: 0px;" ticker-color="ticker.data.change">{{ticker.data.change}} ({{ticker.data.changePercent}})</h4>
+
+									<div style="margin-top: 3px;" ng-show="ticker.data.fields.quoteType == 'ETF'">to etf.com and yahoo.com</div>
+									<div style="margin-top: 3px;" ng-show="ticker.data.fields.quoteType == 'Equity'">to yahoo.com</div>
+
+									<table class="infoTable" style="margin-top: 3px; position: static; width: 100%;">
+										<tbody>
+											<tr>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field0[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field0[1]}}</div>
+												</td>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field8[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field8[1]}}</div>
+												</td>
+											</tr>
+											<tr>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field1[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field1[1]}}</div>
+												</td>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field9[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field9[1]}}</div>
+												</td>
+											</tr>
+											<tr>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field2[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field2[1]}}</div>
+												</td>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field10[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field10[1]}}</div>
+												</td>
+											</tr>
+											<tr>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field3[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field3[1]}}</div>
+												</td>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field11[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field11[1]}}</div>
+												</td>
+											</tr>
+											<tr>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field4[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field4[1]}}</div>
+												</td>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field12[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field12[1]}}</div>
+												</td>
+											</tr>
+											<tr>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field5[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field5[1]}}</div>
+												</td>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field13[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field13[1]}}</div>
+												</td>
+											</tr>
+											<tr>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field6[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field6[1]}}</div>
+												</td>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field14[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field14[1]}}</div>
+												</td>
+											</tr>
+											<tr>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field7[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field7[1]}}</div>
+												</td>
+												<td>
+													<div class="infoLeft">{{ticker.data.fields.field15[0]}}</div>
+													<div class="infoRight">{{ticker.data.fields.field15[1]}}</div>
+												</td>
+											</tr>
+										</tbody>
+									</table>
+
+									<!-- <div style="margin-top: 3px; overflow-y: auto; flex: 1 1 auto;">{{ticker.data.fields.summary}}</div> -->
+								</div>
+							</div>
+						</div>
+						<div class="researchCol" style="width: 33%;">
+							<div ng-show="!(ticker | isEmpty)" style="position: absolute; width: calc(33% - 15px); height: 440px; border: 1px solid rgb(106, 109, 111);">
+									<chart ticker-id="ticker.ticker" ticker-data="ticker.data.history" chart-suffix="-researchChart"></chart>
+							</div>
+						</div>
+						<div class="researchCol">
+							<div ng-show="!(ticker | isEmpty)" style="position: relative; width: 100%; height: 440px; display: flex; flex-direction: column;">
+								<div style="width: 100%; flex: 0 0 27px;">
+									<div class="infoLeft">Notes:</div>
+									<div class="infoRight icon icon-star" ng-show="!ticker.star" ng-model="ticker.star" ng-click="updateStar(ticker.ticker, ticker.star)"></div>
+									<div class="infoRight icon icon-star-fill" ng-show="ticker.star" ng-model="ticker.star" ng-click="updateStar(ticker.ticker, ticker.star)"></div>
+									<div class="infoRight icon icon-bag" ng-show="!ticker.own" ng-model="ticker.own" ng-click="updateOwn(ticker)"></div>
+									<div class="infoRight icon icon-bag-fill" ng-show="ticker.own" ng-model="ticker.own" ng-click="updateOwn(ticker)"></div>
+								</div>
+								<textarea class="homeNotes" style="flex: 0 0 150px;" ng-model="ticker.notes" ng-model-options="{debounce: 500}" ng-change="updateNotes(ticker.ticker, ticker.notes)">{{ticker.notes}}</textarea>
+
+								<div style="margin-top: 8px;">Sector: {{ticker.data.fields.sector}}</div>
+								<div style="margin-top: 3px; overflow-y: auto; flex: 1 1 auto;">{{ticker.data.fields.summary}}</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div id="research-mid2" class="research-row" style="height: 300px;">
+				news here? similar here?
+			</div>
+			<div id="research-bot" class="research-row">
+				star, own, return to home, return to explore
+			</div>
+		</div>
+	</div>
+</div>
