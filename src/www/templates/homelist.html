@@ -3,7 +3,7 @@
 		<div id="ownCtrl">
 			buttons here!
 		</div>
-		<div ng-repeat="ticker in tickerData.data" style="display: flex; flex-direction: row; width: auto;">
+		<div ng-repeat="ticker in tickerData.data" style="display: flex; flex-direction: row; width: 100%;">
 			<div class="separator"></div>
 			<div id="{{ticker.ticker}}-homeTicker" class="tickerRowContainer" style="flex: 0 0 300px;">
 				<div class="tickerRow">
@@ -18,9 +18,9 @@
 			</div>
 			<div class="tickerRowContainer" style="flex: 0 0 600px;">
 				<div class="tickerRow">
-				<div id="{{ticker.ticker}}-homeChartWrapper" style="position: relative; height: 171px; width: 590px; border: 1px solid white">
-					<chart ticker-id="ticker.ticker" ticker-data="ticker.data.history" chart-suffix="-homeChart"></chart>
-				</div>
+					<div id="{{ticker.ticker}}-homeChartWrapper" style="position: relative; height: 171px; width: 590px; border: 1px solid white">
+						<chart ticker-id="ticker.ticker" ticker-data="ticker.data.history" chart-suffix="-homeChart"></chart>
+					</div>
 				</div>
 			</div>
 			<div id="{{ticker.ticker}}-homeInfoTable" class="tickerRowContainer" style="flex: 0 0 600px;">
@@ -112,7 +112,7 @@
 				</div>
 			</div>
 			<div class="tickerRowContainer" style="flex: 1 0 300px;">
-				<div class="tickerRow" style="width: 100%">
+				<div class="tickerRow">
 					<div style="width: 100%; height: 27px;">
 						<div class="infoLeft">Notes:</div>
 						<div class="infoRight icon icon-star" ng-show="!ticker.star" ng-model="ticker.star" ng-click="updateStar(ticker.ticker, ticker.star)"></div>

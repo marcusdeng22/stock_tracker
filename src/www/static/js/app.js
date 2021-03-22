@@ -90,7 +90,8 @@ app.directive("chart", ["$timeout", function($timeout) {
 			"chartSuffix": "@",
 			"tickerData": "="
 		},	//test this with live data
-		template: '<canvas id="{{tickerId}}{{chartSuffix}}" style="width: 100%; height: 100%;"></canvas>',
+		// template: '<canvas id="{{tickerId}}{{chartSuffix}}" style="width: 100%; height: 100%;"></canvas>',
+		template: '<canvas id="{{tickerId}}{{chartSuffix}}"></canvas>',
 		replace: true,
 		link: function($scope) {
 			console.log("chart directive:", $scope);
@@ -138,6 +139,7 @@ app.directive("chart", ["$timeout", function($timeout) {
 									displayColors: false
 								},
 								responsive: true,
+								maintainAspectRatio: false,
 								plugins: {
 									zoom: {
 										pan: {
@@ -248,6 +250,10 @@ app.directive("ngEnter", function() {
 			});
 		}
 	}
+});
+
+$(window).on("scroll", function() {
+	$(".separator").css({"left": $(this).scrollLeft()});
 });
 
 // //https://stackoverflow.com/questions/152975/how-do-i-detect-a-click-outside-an-element
