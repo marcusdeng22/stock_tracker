@@ -15,6 +15,8 @@ from bson.regex import Regex
 from pymongo.cursor import Cursor
 from pymongo import ASCENDING, DESCENDING
 
+import yfinance
+
 SONG_PAGE_SIZE = 25
 PLAYLIST_PAGE_SIZE = 50
 

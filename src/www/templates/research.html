@@ -133,6 +133,8 @@
 									<div class="infoRight icon icon-star-fill" ng-show="ticker.star" ng-model="ticker.star" ng-click="updateStar(ticker.ticker, ticker.star)"></div>
 									<div class="infoRight icon icon-bag" ng-show="!ticker.own" ng-model="ticker.own" ng-click="updateOwn(ticker)"></div>
 									<div class="infoRight icon icon-bag-fill" ng-show="ticker.own" ng-model="ticker.own" ng-click="updateOwn(ticker)"></div>
+									<div class="infoRight" style="margin: 0 10; padding: 0 10; color: green;" ng-show="ticker.indb">IN DB</div>
+									<button type="button" class="infoRight btn btn-danger skinny-btn" ng-show="!ticker.indb" ng-click="addDB(ticker)">NOT IN DB!</button>
 								</div>
 								<textarea class="homeNotes" style="flex: 0 0 150px;" ng-model="ticker.notes" ng-model-options="{debounce: 500}" ng-change="updateNotes(ticker.ticker, ticker.notes)">{{ticker.notes}}</textarea>
 

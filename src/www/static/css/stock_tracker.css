@@ -21,6 +21,26 @@ body {
 	text-overflow: ellipsis;
 }
 
+.separator {
+	position: fixed;
+	width: 100%;
+	border-top: 1px solid white;
+	height: 1px;
+	left: 0;
+}
+
+.tickerRowContainer {
+	display: flex;
+	padding: 5px;
+	height: 100%;
+}
+
+.tickerRow {
+	display: block;
+	height: 171px;
+	width: 100%;
+}
+
 .homelistCol, .researchCol {
 	display: table-cell;
 	padding: 5px;
@@ -28,35 +48,9 @@ body {
 	height: 100%;
 }
 
-.homelistCol1 {
-	width: 300px;
-}
-
-.homelistCol2 {
-	/*width: calc(50% - 100px);*/
-	/*width: 40%;*/
-	width: 600px;
-	/*position: relative;*/
-}
-
-.homelistCol3 {
-	/*width: calc(50% - 100px);*/
-	/*width: 40%;*/
-	width: 600px;
-}
-
-.homelistCol4 {
-	/*width: 300px;*/
-}
-
 .infoTable {
-	/*width: 100%;*/
-	/*position: absolute;*/
-	/*width: calc(40% - 10px);*/
-	/*width: 600px;*/
 	width: 590px;
 	margin-top: -4px;
-	/*margin-left: -5px;*/
 }
 
 @-moz-document url-prefix() {
@@ -72,7 +66,7 @@ body {
 }
 
 .infoTable.compactTable td {
-	padding: 0px 10px;
+	padding: 0px 5px;
 }
 
 .infoTable tr:not(:last-child) {
@@ -89,13 +83,6 @@ body {
 
 .infoRight {
 	float: right;
-}
-
-.tickerRow {
-	display: table-row;
-	border: 1px solid rgb(215, 218, 220);
-	height: 181px;
-	width: 100%;
 }
 
 svg {
@@ -173,6 +160,13 @@ svg {
 
 .dropdown-item:hover {
 	background-color: #c9cdd0;
+}
+
+.skinny-btn {
+	height: 24;
+	margin: 0 10;
+	padding: 0 10;
+	line-height: 0.5;
 }
 
 #editSongSelect > .item {

@@ -65,6 +65,24 @@ app.controller('researchCtrl', ['$scope', '$rootScope', '$location', '$window', 
 			return;
 		};
 
+		$scope.addDB = function(tickerData) {
+			console.log("adding to db:", tickerData);
+			$http.post("/addStock", {
+				ticker: tickerData.ticker,
+				own: tickerData.own,
+				star: tickerData.star,
+				notes: tickerData.notes
+			}).then(function(resp) {
+				console.log("added ticker", tickerData.ticker);
+				tickerData.indb = true;
+				//TODO: notify homelist to send a refresh to grab the new data
+			}, function(err) {
+				console.log("failed to post /addStock");
+				console.log(err);
+				alert("Failed to add ticker");
+			});
+		};
+
 		$rootScope.$on("loadResearch", function(e, tickerData) {
 			//load tickerData into all fields
 			$scope.ticker = tickerData;

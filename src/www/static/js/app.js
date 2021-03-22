@@ -31,9 +31,56 @@ app.directive("doAfter", ["$timeout", function($timeout) {
 	};
 }]);
 
-// am4core.options.minPolylineStep = 5;
-// am4core.options.queue = true;
-// am4core.options.onlyShowOnViewport = true;
+Chart.Tooltip.positioners.topLeft = function (elements, eventPosition) {
+	return {
+		x: 0,
+		y: 0
+	};
+};
+
+function customTooltip(tooltipModel) {
+	var tooltipEl = document.getElementById("chartjs-tooltip");
+
+	if (!tooltipEl) {
+		tooltipEl = document.createElement("div");
+		tooltipEl.id = "chartjs-tooltip";
+		tooltipEl.innerHTML = "<table></table>";
+		document.body.appendChild(tooltipEl);
+	}
+
+	if (tooltipModel.opacity === 0) {
+		tooltipEl.style.opacity = 0;
+		return;
+	}
+	if (tooltipModel.body) {
+		var titleLines = tooltipModel.title || [];
+		var bodyLines = tooltipModel.body[0].lines;
+
+		var innerHtml = '<tbody>';
+
+		bodyLines.forEach(function(body) {
+			innerHtml += '<tr><td>' + body + '</td></tr>';
+		});
+		innerHtml += '</tbody>';
+
+		var tableRoot = tooltipEl.querySelector('table');
+		tableRoot.innerHTML = innerHtml;
+	}
+
+	// `this` will be the overall tooltip
+	var position = this._chart.canvas.getBoundingClientRect();
+
+	// Display, position, and set styles for font
+	tooltipEl.style.opacity = 1;
+	tooltipEl.style.position = 'absolute';
+	tooltipEl.style.left = position.left + window.pageXOffset + 'px';
+	tooltipEl.style.top = position.top + window.pageYOffset + 'px';
+	tooltipEl.style.fontFamily = tooltipModel._bodyFontFamily;
+	tooltipEl.style.fontSize = tooltipModel.bodyFontSize + 'px';
+	tooltipEl.style.fontStyle = tooltipModel._bodyFontStyle;
+	tooltipEl.style.padding = tooltipModel.yPadding + 'px ' + tooltipModel.xPadding + 'px';
+	tooltipEl.style.pointerEvents = 'none';
+}
 
 app.directive("chart", ["$timeout", function($timeout) {
 	return {
@@ -44,7 +91,6 @@ app.directive("chart", ["$timeout", function($timeout) {
 			"tickerData": "="
 		},	//test this with live data
 		template: '<canvas id="{{tickerId}}{{chartSuffix}}" style="width: 100%; height: 100%;"></canvas>',
-		// template: '<div id="{{tickerId}}{{chartSuffix}}" style="width: 100%; height: 100%;"></div>',
 		replace: true,
 		link: function($scope) {
 			console.log("chart directive:", $scope);
@@ -62,91 +108,72 @@ app.directive("chart", ["$timeout", function($timeout) {
 
 						//test creating using chart.js
 						var chartContext = $("#" + $scope.tickerId + $scope.chartSuffix);
-						// var chartContext = document.getElementById($scope.tickerId + $scope.chartSuffix).getContext("2d");
-						console.log(chartContext);
-						var chart = new Chart(chartContext, {
+						// console.log(chartContext);
+						// console.log(Chart.defaults.financial);
+						var myConfig = {
 							type: "candlestick",
 							data: {
 								datasets: [{
-									label: "",
-									data: $scope.tickerData
+									// labels: "test",
+									data: $scope.tickerData,
+									// borderWidth: 0,
+									// hoverBorderWidth: 0,
+									// hoverBorderColor
+									borderColor: "white"
 								}]
+							},
+							options: {
+								title: {
+									display: false
+								},
+								legend: {
+									display: false
+								},
+								tooltips: {
+									enabled: false,
+									titleFontSize: 10,
+									bodyFontSize: 10,
+									custom: customTooltip,
+									position: "topLeft",
+									displayColors: false
+								},
+								responsive: true,
+								plugins: {
+									zoom: {
+										pan: {
+											enabled: true,
+											mode: 'x',
+											// onPan: function(c) {console.log("panning");}
+										},
+										zoom: {
+											enabled: true,
+											mode: 'xy',
+											// onZoom: function(c) {console.log("zooming");}
+										}
+									},
+									crosshair: {
+										line: {
+											width: 1,
+											color: "white",
+											dashPattern: [10, 10]
+										},
+										sync: {
+											enabled: false
+										},
+										zoom: {
+											enabled: false
+										}
+									}
+								}
 							}
-						});
-
-						// var chart = am4core.create($scope.tickerId + $scope.chartSuffix, am4charts.XYChart);
-						// // chart.dateFormatter.inputDateFormat = "yyyy-MM-dd";
-						// chart.dateFormatter.inputDateFormat = "x";
-
-						// // chart.svgContainer.autoResize = false;
-
-						// // chart.stroke = am4core.color("rgb(215, 218, 220)");
-						// chart.fontSize = "0.75rem";
-						// chart.fontWeight = 100;
-						// chart.paddingLeft = 0;
-						// chart.paddingRight = 5;
-
-						// chartWhiteColor = am4core.color("rgb(215, 218, 220)");
-
-						// var dateAxis = chart.xAxes.push(new am4charts.DateAxis());
-						// dateAxis.renderer.grid.template.location = 0;
-						// dateAxis.skipEmptyPeriods = true;
-
-						// dateAxis.renderer.grid.template.stroke = chartWhiteColor;
-						// dateAxis.renderer.labels.template.fill = chartWhiteColor;
-						// // dateAxis.renderer.labels.template.disabled = true;
-
-						// chart.paddingBottom = 0;
-						// // dateAxis.renderer.labels.template.zIndex = 9999;
-
-						// var valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
-						// valueAxis.tooltip.disabled = true;
-
-						// valueAxis.renderer.grid.template.stroke = chartWhiteColor;
-						// valueAxis.renderer.labels.template.fill = chartWhiteColor;
-
-						// var series = chart.series.push(new am4charts.CandlestickSeries());
-						// series.dataFields.dateX = "Date";
-						// series.dataFields.valueY = "Close";
-						// series.dataFields.openValueY = "Open";
-						// series.dataFields.lowValueY = "Low";
-						// series.dataFields.highValueY = "High";
-						// series.simplifiedProcessing = true;
-						// series.tooltipText = "Open: ${openValueY.value}\nLow: ${lowValueY.value}\nHigh: ${highValueY.value}\nClose: ${valueY.value}";
-						// // series.tooltip.marginLeft = 0;
-						// // series.tooltip.marginRight = 0;
-						// // series.tooltip.marginTop = 0;
-						// // series.tooltip.marginBottom = 0;
-
-						// chart.cursor = new am4charts.XYCursor();
-						// chart.cursor.lineX.stroke = chartWhiteColor;
-						// chart.cursor.lineX.strokeOpacity = 1;
-						// chart.cursor.lineY.stroke = chartWhiteColor;
-						// chart.cursor.lineY.strokeOpacity = 1;
-						// chart.cursor.behavior = "panX";
-						// chart.cursor.maxPanOut = 0.8;
-
-						// chart.mouseWheelBehavior = "zoomX";
-						// chart.zoomOutButton.align = "left";
-						// chart.zoomOutButton.icon.disabled = true;
-						// chart.zoomOutButton.background.cornerRadius(5, 5, 5, 5);
-						// chart.zoomOutButton.background.fill = chartWhiteColor;
-						// chart.zoomOutButton.width = 20;
-						// chart.zoomOutButton.height = 20;
-						// //from: https://www.amcharts.com/docs/v4/tutorials/configuring-the-zoom-out-button/#Custom_image_example
-						// var zoomImage = chart.zoomOutButton.createChild(am4core.Image);
-						// zoomImage.href = "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiA/PjwhRE9DVFlQRSBzdmcgIFBVQkxJQyAnLS8vVzNDLy9EVEQgU1ZHIDEuMS8vRU4nICAnaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkJz48c3ZnIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgMCAwIDk2IDk2IiBoZWlnaHQ9Ijk2cHgiIGlkPSJ6b29tX291dCIgdmVyc2lvbj0iMS4xIiB2aWV3Qm94PSIwIDAgOTYgOTYiIHdpZHRoPSI5NnB4IiB4bWw6c3BhY2U9InByZXNlcnZlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIj48cGF0aCBkPSJNOTAuODI5LDg1LjE3MUw2OC4xMjEsNjIuNDY0QzczLjA0Nyw1Ni4zMDcsNzYsNDguNSw3Niw0MEM3NiwyMC4xMTgsNTkuODgyLDQsNDAsNEMyMC4xMTgsNCw0LDIwLjExOCw0LDQwczE2LjExOCwzNiwzNiwzNiAgYzguNSwwLDE2LjMwNi0yLjk1MywyMi40NjQtNy44NzlsMjIuNzA4LDIyLjcwOGMxLjU2MiwxLjU2Miw0LjA5NSwxLjU2Miw1LjY1NywwQzkyLjM5MSw4OS4yNjcsOTIuMzkxLDg2LjczMyw5MC44MjksODUuMTcxeiAgIE00MCw2OGMtMTUuNDY0LDAtMjgtMTIuNTM2LTI4LTI4czEyLjUzNi0yOCwyOC0yOGMxNS40NjQsMCwyOCwxMi41MzYsMjgsMjhTNTUuNDY0LDY4LDQwLDY4eiIvPjxwYXRoIGQ9Ik01Niw0MGMwLDIuMjA5LTEuNzkxLDQtNCw0SDI4Yy0yLjIwOSwwLTQtMS43OTEtNC00bDAsMGMwLTIuMjA5LDEuNzkxLTQsNC00aDI0QzU0LjIwOSwzNiw1NiwzNy43OTEsNTYsNDBMNTYsNDB6Ii8+PC9zdmc+";
-						// zoomImage.width = 10;
-						// zoomImage.height = 10;
-						// zoomImage.interactionsEnabled = false;
-						// zoomImage.paddingLeft = -10;
-						// zoomImage.paddingTop = -10;
-
-						// chart.data = $scope.tickerData;
-
-						// $scope.$on("$destroy", function() {
-						// 	chart.dispose();
-						// });
+						};
+						// //merge with the defaults in order to support v13b
+						// for (var i in Chart.defaults.financial) {
+						// 	if (!(i in myConfig.options)) {
+						// 		myConfig.options[i] = Chart.defaults.financial[i];
+						// 	}
+						// }
+						var chart = new Chart(chartContext, myConfig);
 					}, 0, false);
 				}
 			});

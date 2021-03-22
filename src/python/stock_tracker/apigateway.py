@@ -89,14 +89,15 @@ def extractInfo(kwargs):
 	#don't get dividends and splits, round to 3 decimals
 	history = numpy.round(ticker.history(period=period, interval=interval, auto_adjust=True, actions=False), 3)
 	#convert to central time if possible
-	try:
-		if "Date" in history:
-			history = history.tz_localize(TZ)
-		if "Datetime" in history:
-			history = history.tz_convert(TZ)
-		history = history.reset_index()
-	except:
-		print("failed to convert data to", TZ)
+	# try:
+	# 	if "Date" in history:
+	# 		history = history.tz_localize(TZ)
+	# 	if "Datetime" in history:
+	# 		history = history.tz_convert(TZ)
+	# 	history = history.reset_index()
+	# except:
+	# 	print("failed to convert data to", TZ)
+	history = history.reset_index()
 	if "Date" in history:
 		# history["Datetime"] = history["Date"].apply(lambda x: str(x.date()) + CLOSE_TIME)
 		# history["Date"] = history["Date"].apply(lambda x: str(x.date()))		#leave as Datetime? YYYY-MM-DD
@@ -182,6 +183,12 @@ def extractInfo(kwargs):
 	else:
 		myInfo["beta"] = "N/A"
 
+	if myInfo["dividendRate"] is not None and myInfo["dividendRate"] != "N/A":
+		print(myInfo["longName"], myInfo["dividendRate"], myInfo["dividendYield"])
+		myInfo["dividendQuote"] = myInfo["dividendRate"] + " (" + myInfo["dividendYield"] + ")"
+	else:
+		myInfo["dividendQuote"] = "N/A"
+
 	#handle individual types
 	infoETF = ["YTD Daily Total Return", "Expense Ratio (net)", "Inception Date"]
 	infoEQUITY = ["Earnings Date"]
@@ -241,7 +248,7 @@ def extractInfo(kwargs):
 		myFields["field10"] = ["PE Ratio (TTM):", myInfo["trailingPE"]]
 		myFields["field11"] = ["EPS (TTM):", myInfo["trailingEps"]]
 		myFields["field12"] = ["Earnings Date:", myInfo["Earnings Date"]]
-		myFields["field13"] = ["Fwd Div & Yield:", myInfo["dividendRate"] + " (" + myInfo["dividendYield"] + ")"]
+		myFields["field13"] = ["Fwd Div & Yield:", myInfo["dividendQuote"]]
 		myFields["field14"] = ["Ex-Dividend Date:", myInfo["exDividendDate"]]
 		myFields["field15"] = ["", ""]
 
@@ -369,6 +376,7 @@ class ApiGateway(object):
 
 		# sanitize the input
 		myRequest = m_utils.createStockQuery(data)
+		myRequest["indb"] = True
 
 		#insert
 		self.stockDB().update_one({"ticker": myRequest["ticker"]}, {"$set": myRequest}, upsert=True)
@@ -584,14 +592,15 @@ class ApiGateway(object):
 		#download and transform
 		history = numpy.round(yfinance.download(myTickers, period=period, interval=interval, progress=False, \
 			group_by="ticker", actions=False), 3)
-		try:
-			if "Date" in history:
-				history = history.tz_localize(TZ)
-			if "Datetime" in history:
-				history = history.tz_convert(TZ)
-			history = history.reset_index()
-		except:
-			print("failed to convert data to", TZ)
+		# try:
+		# 	if "Date" in history:
+		# 		history = history.tz_localize(TZ)
+		# 	if "Datetime" in history:
+		# 		history = history.tz_convert(TZ)
+		# 	history = history.reset_index()
+		# except:
+		# 	print("failed to convert data to", TZ)
+		history = history.reset_index()
 		key = ""
 		if "Date" in history:
 			# history["Datetime"] = history["Date"].apply(lambda x: str(x.date()) + CLOSE_TIME)
@@ -705,6 +714,7 @@ class ApiGateway(object):
 			"ticker": (str),
 			"own": (bool),
 			"star": (bool),
+			"indb": (bool),
 			"notes": (str),
 			"data": {
 				"history": [{date, open, high, low, div, split}, ...],
@@ -732,8 +742,11 @@ class ApiGateway(object):
 				"ticker": myRequest["ticker"],
 				"own": False,
 				"star": False,
+				"indb": False,
 				"notes": ""
 			}
+		else:
+			myStock = list(myStock)[0]
 		myStock["data"] = extractInfo({"ticker": myRequest["ticker"], "period": period, "interval": interval})
 
 		return {"data": myStock}

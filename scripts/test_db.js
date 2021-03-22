@@ -11,7 +11,8 @@ db["md-stocks"].drop();
 
 print("resetting db to debug data");
 
-db["md-stocks"].insert({"ticker": "BSJO", "own": true, "star": false, "notes": ""})
-db["md-stocks"].insert({"ticker": "NMZ", "own": true, "star": false, "notes": ""})
+db["md-stocks"].insert({"ticker": "BSJO", "own": true, "star": false, "indb": true, "notes": ""})
+db["md-stocks"].insert({"ticker": "NMZ", "own": true, "star": false, "indb": true, "notes": ""})
+db["md-stocks"].insert({"ticker": "WKHS", "own": true, "star": true, "indb": true, "notes": ""})
 
 print("done")
