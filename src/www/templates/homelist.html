@@ -115,8 +115,8 @@
 				<div class="tickerRow">
 					<div style="width: 100%; height: 27px;">
 						<div class="infoLeft">Notes:</div>
-						<div class="infoRight icon icon-star" ng-show="!ticker.star" ng-model="ticker.star" ng-click="updateStar(ticker.ticker, ticker.star)"></div>
-						<div class="infoRight icon icon-star-fill" ng-show="ticker.star" ng-model="ticker.star" ng-click="updateStar(ticker.ticker, ticker.star)"></div>
+						<div class="infoRight icon icon-star" ng-show="!ticker.star" ng-model="ticker.star" ng-click="updateStar(ticker)"></div>
+						<div class="infoRight icon icon-star-fill" ng-show="ticker.star" ng-model="ticker.star" ng-click="updateStar(ticker)"></div>
 						<div class="infoRight icon icon-bag" ng-show="!ticker.own" ng-model="ticker.own" ng-click="updateOwn(ticker)"></div>
 						<div class="infoRight icon icon-bag-fill" ng-show="ticker.own" ng-model="ticker.own" ng-click="updateOwn(ticker)"></div>
 					</div>
