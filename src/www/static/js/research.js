@@ -108,6 +108,7 @@ app.controller('researchCtrl', ['$scope', '$rootScope', '$location', '$window', 
 		};
 
 		$scope.addDB = function(tickerData) {
+			//TODO: add a spinner in the button
 			console.log("adding to db:", tickerData);
 			$http.post("/addStock", {
 				ticker: tickerData.ticker,

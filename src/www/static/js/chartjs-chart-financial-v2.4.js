@@ -92,9 +92,40 @@ const FinancialLinearScale = Chart.scaleService.getScaleConstructor('linear').ex
 		me.min -= space;
 		me.max += space;
 
+		var tempTicks = helpers.generateTicks(me);
+		me.dataMin = helpers.minReduce(tempTicks);
+		me.dataMax = helpers.maxReduce(tempTicks);
+		// console.log("total range min/max:", me.dataMin, me.dataMax, tempTicks);
+
 		// Common base implementation to handle ticks.min, ticks.max, ticks.beginAtZero
 		this.handleTickRangeOptions();
-	}
+	},
+
+	// afterDataLimits() {
+	// 	const me = this;
+	// 	//set data min/max
+	// 	if (typeof me.chart.dataAdded === "undefined" || me.chart.dataAdded == true) {
+	// 		//only update if new data
+	// 		// var maxTicks = me.getTickLimit()
+	// 		// var tempTicks = helpers.generateTicks({
+	// 		// 	// maxTicks: 11,	//this is the max number of ticks possible
+	// 		// 	maxTicks: me.getTickLimit(),
+	// 		// 	min: undefined,
+	// 		// 	max: undefined,
+	// 		// 	precision: undefined,
+	// 		// 	stepSize: undefined
+	// 		// }, {min: me.min, max: me.max});
+	// 		// me.dataMin = helpers.minReduce(tempTicks);
+	// 		// me.dataMax = helpers.maxReduce(tempTicks);
+	// 		// console.log("determined min/max:", me.dataMin, me.dataMax, tempTicks, maxTicks)
+	// 		console.log("afterDataLimits:", me);
+	// 		var tempTicks = helpers.generateTicks(me);
+	// 		me.dataMin = helpers.minReduce(tempTicks);
+	// 		me.dataMax = helpers.maxReduce(tempTicks);
+	// 		console.log("determined min/max:", me.dataMin, me.dataMax, tempTicks);
+	// 		me.chart.dataAdded = false;
+	// 	}
+	// }
 });
 
 Chart.scaleService.registerScaleType('financialLinear', FinancialLinearScale, defaultConfig);
@@ -124,17 +155,6 @@ Chart.defaults.financial = {
 				autoSkip: true,
 				autoSkipPadding: 75,
 				sampleSize: 100
-			},
-			time: {
-				// parser: function(date) {
-				// 	if (!first) {
-				// 		console.log(date)
-				// 		console.log(typeof date);
-				// 		first = true;
-				// 	}
-				// 	return date;
-				// },
-				// tooltipFormat: "MM/dd/yyyy"
 			},
 			afterBuildTicks: function(scale, ticks) {
 				// console.log("after build ticks", scale);
@@ -202,11 +222,13 @@ Chart.defaults.financial = {
 				const h = point.h;
 				const l = point.l;
 				const c = point.c;
+				const v = point.v;
 
 				const DateTime = window && window.luxon && window.luxon.DateTime;
 				var date = DateTime.fromMillis(point.t).toUTC().toFormat("MM/dd/yyyy h:mm a");
 
 				return [date, 'O: ' + o + '  H: ' + h + '  L: ' + l + '  C: ' + c];
+				// return [date, 'O: ' + o + '  H: ' + h + '  L: ' + l + '  C: ' + c + ' V: ' + v];
 			}
 		}
 	}

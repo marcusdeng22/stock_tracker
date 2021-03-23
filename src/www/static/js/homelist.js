@@ -25,13 +25,14 @@ app.controller('homelistCtrl', ['$scope', '$rootScope', '$timeout', '$location',
 	};
 
 	//test color settings
-	// setTimeout(function() {
-	// 	console.log("updating values");
-	// 	$scope.tickerData.data[0].data.change = 0;
-	// 	$scope.tickerData.data[1].data.change = -10;
-	// 	console.log($scope.tickerData);
-	// 	$scope.$apply();
-	// }, 10000);
+	setTimeout(function() {
+		console.log("updating values");
+		// $scope.tickerData.data[0].data.change = 0;
+		// $scope.tickerData.data[1].data.change = -10;
+		// console.log($scope.tickerData);
+		// $scope.tickerData.data[0].data.history.push({t: 1616457600000, o: 25, h: 30, l: 24, c: 25, v: 200000});
+		$scope.$apply();
+	}, 7000);
 
 	$scope.updateStar = function(tickerInfo) {
 		tickerInfo.star = !tickerInfo.star;

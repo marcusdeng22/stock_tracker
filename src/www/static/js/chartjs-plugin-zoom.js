@@ -96,8 +96,8 @@ function storeOriginalOptions(chart) {
 }
 
 /**
- * @param {string} mode can be 'x', 'y' or 'xy'
- * @param {string} dir can be 'x' or 'y'
+ * @param {string} mode can be 'x', 'y' or 'xy' or 'xa'
+ * @param {string} dir can be 'x' or 'y' or 'xa'
  * @param {Chart} chart instance of the chart in question
  */
 function directionEnabled(mode, dir, chart) {
@@ -117,6 +117,7 @@ function rangeMaxLimiter(zoomPanOptions, newMax) {
 			!helpers.isNullOrUndef(zoomPanOptions.rangeMax[zoomPanOptions.scaleAxes])) {
 		var rangeMax = zoomPanOptions.rangeMax[zoomPanOptions.scaleAxes];
 		if (newMax > rangeMax) {
+			// console.log("exceed max");
 			newMax = rangeMax;
 		}
 	}
@@ -128,6 +129,7 @@ function rangeMinLimiter(zoomPanOptions, newMin) {
 			!helpers.isNullOrUndef(zoomPanOptions.rangeMin[zoomPanOptions.scaleAxes])) {
 		var rangeMin = zoomPanOptions.rangeMin[zoomPanOptions.scaleAxes];
 		if (newMin < rangeMin) {
+			// console.log("exceed min");
 			newMin = rangeMin;
 		}
 	}
@@ -185,8 +187,27 @@ function zoomNumericalScale(scale, zoom, center, zoomOptions) {
 	var minDelta = newDiff * minPercent;
 	var maxDelta = newDiff * maxPercent;
 
-	scale.options.ticks.min = rangeMinLimiter(zoomOptions, scale.min + minDelta);
-	scale.options.ticks.max = rangeMaxLimiter(zoomOptions, scale.max - maxDelta);
+	// var min = Math.floor(scale.min + minDelta);
+	// var max = Math.ceil(scale.max - maxDelta);
+
+	var min = scale.min + minDelta;
+	var max = scale.max - maxDelta;
+	// console.log("initial min/max:", min, max);
+
+	// if (!scale.isHorizontal()) {
+	// 	//y axis
+	// 	// var tempTicks = helpers.generateTicks(scale, Math.floor(min), Math.ceil(max));
+	// 	var tempTicks = helpers.generateTicks(scale, min, max);
+	// 	console.log("setting y ticks", tempTicks);
+	// 	min = Math.floor(helpers.minReduce(tempTicks));
+	// 	max = Math.ceil(helpers.maxReduce(tempTicks));
+	// }
+	// console.log("setting range:", min, max);
+
+	scale.options.ticks.min = rangeMinLimiter(zoomOptions, min);
+	scale.options.ticks.max = rangeMaxLimiter(zoomOptions, max);
+	// scale.options.ticks.min = rangeMinLimiter(zoomOptions, scale.min + minDelta);
+	// scale.options.ticks.max = rangeMaxLimiter(zoomOptions, scale.max - maxDelta);
 }
 
 function zoomTimeScale(scale, zoom, center, zoomOptions) {
@@ -250,37 +271,36 @@ function doZoom(chart, percentZoomX, percentZoomY, focalPoint, whichAxes, animat
 
 		helpers.each(chart.scales, function(scale) {
 			if (scale.isHorizontal() && directionEnabled(zoomMode, 'x', chart) && directionEnabled(_whichAxes, 'x', chart)) {
-				// if (percentZoomX < 1 && scale.min <= chart.zoomStore.rangeMin.x) {
-				// 	//max zoom and zooming out, so skip
-				// 	console.log("early zoom left")
-				// 	scale.options.ticks.min = chart.zoomStore.rangeMin.x;
-				// 	return;
-				// }
-				// if (percentZoomX < 1 && scale.max >= chart.zoomStore.rangeMax.x) {
-				// 	console.log("early zoom right");
-				// 	scale.options.ticks.max = chart.zoomStore.rangeMax.x;
-				// 	return;
-				// }
-				if (percentZoomX < 1 && scale.min <= chart.zoomStore.rangeMin.x && scale.max >= chart.zoomStore.rangeMax.x) {
-					// console.log("early zoom both");
-					scale.options.ticks.min = chart.zoomStore.rangeMin.x;
-					scale.options.ticks.max = chart.zoomStore.rangeMax.x;
+				// console.log("zoom x limits:", scale.dataMin, scale.dataMax);
+				if (percentZoomX < 1 && scale.min <= scale.dataMin && scale.max >= scale.dataMax) {
+					// console.log("early x zoom both");
+					scale.options.ticks.min = scale.dataMin;
+					scale.options.ticks.max = scale.dataMax;
 					return;
 				}
 				zoomOptions.scaleAxes = 'x';
+				zoomOptions.rangeMin.x = scale.dataMin;
+				zoomOptions.rangeMax.x = scale.dataMax;
 				zoomScale(scale, percentZoomX, focalPoint, zoomOptions);
-			} else if (!scale.isHorizontal() && directionEnabled(zoomMode, 'y', chart) && directionEnabled(_whichAxes, 'y', chart)) {
-				if (percentZoomX < 1 && scale.min <= chart.zoomStore.rangeMin.y) {
-					//max zoom and zooming out, so skip
-					scale.options.ticks.min = chart.zoomStore.rangeMin.y;
-					return;
+
+				if (directionEnabled(zoomMode, 'a', chart)) {
+					// console.log("enabling update check");
+					chart.zoomA = true;
+					chart.zoomAxisData = scale.id;
 				}
-				if (percentZoomX < 1 && scale.max >= chart.zoomStore.rangeMax.y) {
-					scale.options.ticks.max = chart.zoomStore.rangeMax.y;
+			} else if (!scale.isHorizontal() && directionEnabled(zoomMode, 'y', chart) && directionEnabled(_whichAxes, 'y', chart)) {
+				// console.log(scale);
+				// console.log("zoom y limits:", scale.dataMin, scale.dataMax);
+				if (percentZoomY < 1 && scale.min <= scale.dataMin && scale.max >= scale.dataMax) {
+					console.log('early y zoom both')
+					scale.options.ticks.min = scale.dataMin;
+					scale.options.ticks.max = scale.dataMax;
 					return;
 				}
 				// Do Y zoom
 				zoomOptions.scaleAxes = 'y';
+				zoomOptions.rangeMin.y = scale.dataMin;
+				zoomOptions.rangeMax.y = scale.dataMax;
 				zoomScale(scale, percentZoomY, focalPoint, zoomOptions);
 			}
 		});
@@ -395,24 +415,45 @@ function doPan(chartInstance, deltaX, deltaY) {
 
 		helpers.each(chartInstance.scales, function(scale) {
 			if (scale.isHorizontal() && directionEnabled(panMode, 'x', chartInstance) && deltaX !== 0) {
-				if (deltaX > 0 && scale.min <= chartInstance.zoomStore.rangeMin.x) {
+				if (deltaX > 0 && scale.min <= scale.dataMin) {
 					//panning left, and already at the left most, so skip
 					// console.log("early left");
-					scale.options.ticks.min = chartInstance.zoomStore.rangeMin.x;
+					scale.options.ticks.min = scale.dataMin;
 					return;
 				}
-				if (deltaX < 0 && scale.max >= chartInstance.zoomStore.rangeMax.x) {
+				if (deltaX < 0 && scale.max >= scale.dataMax) {
 					//panning right, and already at the right most, so skip
 					// console.log("early right");
-					scale.options.ticks.max = chartInstance.zoomStore.rangeMax.x;
+					scale.options.ticks.max = scale.dataMax;
 					return;
 				}
 				panOptions.scaleAxes = 'x';
-				panOptions.rangeMin = chartInstance.zoomStore.rangeMin;
-				panOptions.rangeMax = chartInstance.zoomStore.rangeMax;
+				panOptions.rangeMin = {x: scale.dataMin};
+				panOptions.rangeMax = {x: scale.dataMax};
 				panScale(scale, deltaX, panOptions);
+
+				if (directionEnabled(panMode, 'a', chartInstance)) {
+					// console.log("enabling update check");
+					chartInstance.zoomA = true;
+					chartInstance.zoomAxisData = scale.id;
+				}
 			} else if (!scale.isHorizontal() && directionEnabled(panMode, 'y', chartInstance) && deltaY !== 0) {
+				console.log(deltaY, scale.min, scale.dataMin, scale.max, scale.dataMax);
+				if (deltaY > 0 && scale.min <= scale.dataMin) {
+					//panning down, and already at the top most, so skip
+					// console.log("early top");
+					scale.options.ticks.min = scale.dataMin;
+					return;
+				}
+				if (deltaY < 0 && scale.max >= scale.dataMax) {
+					//panning up, and already at the bot most, so skip
+					// console.log("early bot");
+					scale.options.ticks.max = scale.dataMax;
+					return;
+				}
 				panOptions.scaleAxes = 'y';
+				panOptions.rangeMin = {y: scale.dataMin};
+				panOptions.rangeMax = {y: scale.dataMax};
 				panScale(scale, deltaY, panOptions);
 			}
 		});
@@ -458,6 +499,9 @@ zoomNS.panFunctions.category = panCategoryScale;
 zoomNS.panFunctions.time = panTimeScale;
 zoomNS.panFunctions.linear = panNumericalScale;
 zoomNS.panFunctions.logarithmic = panNumericalScale;
+//custom for financiallinear
+zoomNS.zoomFunctions.financialLinear = zoomNumericalScale;
+zoomNS.panFunctions.financiallinear = zoomNumericalScale;
 // Globals for category pan and zoom
 zoomNS.panCumulativeDelta = 0;
 zoomNS.zoomCumulativeDelta = 0;
@@ -467,7 +511,6 @@ var zoomPlugin = {
 	id: 'zoom',
 
 	afterInit: function(chartInstance, pluginOptions) {
-		chartInstance.$zoom._firstUpdate = false;
 
 		chartInstance.resetZoom = function() {
 			storeOriginalOptions(chartInstance);
@@ -514,20 +557,42 @@ var zoomPlugin = {
 	},
 
 	afterUpdate: function(chart) {
-		if (!chart.$zoom._firstUpdate) {
-			chart.zoomStore = {rangeMin: {}, rangeMax: {}};
-			helpers.each(chart.scales, function(scale) {
-				if (scale.isHorizontal()) {
-					chart.zoomStore.rangeMin.x = scale.min;
-					chart.zoomStore.rangeMax.x = scale.max;
-				}
-				else {
-					chart.zoomStore.rangeMin.y = scale.min;
-					chart.zoomStore.rangeMax.y = scale.max;
-				}
-			});
+		if (chart.zoomA) {
+			// console.log("received update check");
+			const scaleId = chart.zoomAxisData;
+			const ticks = chart.scales[scaleId]._ticks;
+			const tickStart = ticks[0].value;
+			const tickEnd = ticks[ticks.length - 1].value;
 
-			chart.$zoom._firstUpdate = true;
+			var min = Number.POSITIVE_INFINITY;
+			var max = Number.NEGATIVE_INFINITY;
+			var chartData = chart.data.datasets[0].data;
+
+			for (var i = 0; i < chartData.length; i++) {
+				var temp = chartData[i];
+				if (temp.t >= tickStart && temp.t <= tickEnd) {
+					//process this: ONLY WORKS FOR FINANCIAL LINEAR DATA
+					if (temp.l && temp.l < min) {
+						min = temp.l;
+					}
+					if (temp.h && temp.h > max) {
+						max = temp.h;
+					}
+				}
+			}
+			//compute appropriate bounds
+			var yScale = chart.scales["y-axis-0"];
+			yScale.min = min;
+			yScale.max = max;
+			var tempTicks = helpers.generateTicks(yScale);
+			//flatten min/max
+			yScale.min = Math.max(helpers.minReduce(tempTicks), yScale.dataMin);
+			yScale.max = Math.min(helpers.maxReduce(tempTicks), yScale.dataMax);
+			yScale.options.ticks.min = yScale.min;
+			yScale.options.ticks.max = yScale.max;
+			// console.log("range data min/max:", yScale.min, yScale.max, yScale);
+			chart.zoomA = false;
+			chart.update();
 		}
 	},
 

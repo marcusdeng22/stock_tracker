@@ -94,11 +94,19 @@ app.directive("chart", ["$timeout", function($timeout) {
 		template: '<canvas id="{{tickerId}}{{chartSuffix}}"></canvas>',
 		replace: true,
 		link: function($scope) {
-			console.log("chart directive:", $scope);
+			var chart;
+			console.log("new chart");
 
 			$scope.$watch("tickerId", function() {
+				console.log("chart directive:", $scope);
+				// console.log("prevChart:", chart);
 				if ($scope.tickerId) {
+					if (chart) {
+						console.log("destroying old chart");
+						chart.destroy();
+					}
 					$timeout(function() {
+						//test worker chart generation: https://stackoverflow.com/questions/63795576/using-chart-js-in-web-worker
 						// console.log(document);
 						// var w = new Worker("/js/chart.js");
 						// w.postMessage(document);
@@ -144,12 +152,12 @@ app.directive("chart", ["$timeout", function($timeout) {
 									zoom: {
 										pan: {
 											enabled: true,
-											mode: 'x',
+											mode: 'xa',
 											// onPan: function(c) {console.log("panning");}
 										},
 										zoom: {
 											enabled: true,
-											mode: 'xy',
+											mode: 'xa',
 											// onZoom: function(c) {console.log("zooming");}
 										}
 									},
@@ -175,8 +183,20 @@ app.directive("chart", ["$timeout", function($timeout) {
 						// 		myConfig.options[i] = Chart.defaults.financial[i];
 						// 	}
 						// }
-						var chart = new Chart(chartContext, myConfig);
+						chart = new Chart(chartContext, myConfig);
 					}, 0, false);
+				}
+			});
+
+			$scope.$watchCollection("tickerData", function(newVal) {
+				console.log("tickerData watch hit", newVal);
+				if (newVal && chart) {
+					chart.dataAdded = true;
+					console.log("pushing data to:", chart);
+					console.log("current data:", chart.data.datasets[0].length);
+					//update scale min/max: store is not updated
+					// chart.zoomStore.rangeMax
+					chart.update();
 				}
 			});
 		}
