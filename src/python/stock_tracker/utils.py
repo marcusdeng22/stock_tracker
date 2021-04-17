@@ -15,7 +15,8 @@ from bson.regex import Regex
 from pymongo.cursor import Cursor
 from pymongo import ASCENDING, DESCENDING
 
-import yfinance
+# import yfinance
+import yahooquery
 
 SONG_PAGE_SIZE = 25
 PLAYLIST_PAGE_SIZE = 50
@@ -45,6 +46,8 @@ def checkValidData(key, data, dataType, optional=False, default=None, coerce=Fal
 					return datetime.datetime.strptime(localVar, "%m/%d/%Y") if dataType == datetime.datetime else dataType(localVar)
 				except:
 					raise cherrypy.HTTPError(400, "Could not coerce to type %s. See: %s" % (dataType, localVar))
+			elif optional:
+				return default
 			else:
 				cherrypy.log("Expected %s of type %s. See: %s" %
 				(key, dataType, localVar))
@@ -132,54 +135,111 @@ def checkValidID(data, convert=True):
 def createStockQuery(data, tickerOpt=False, ownOpt=False, starOpt=False, notesOpt=False, tickerCreate=True):
 	myStock = {}
 
-	myStock["ticker"] = checkValidData("ticker", data, str, optional=tickerOpt).upper()
+	singleTicker = checkValidData("ticker", data, str, optional=True)
+
+	tickerList = checkValidData("ticker", data, list, optional=True)
+
+	if singleTicker is None and tickerList is None and not tickerOpt:
+		raise cherrypy.HTTPError(400, "missing ticker information")
+
+	if singleTicker and tickerList is None:
+		tickerList = [singleTicker]
+	myTickerList = None
+	if tickerList and len(tickerList):
+		myStock["ticker"] = []
+		myTickerList = []
+		for t in tickerList:
+			if isinstance(t, str):
+				myTickerList.append(t.upper())
+			else:
+				raise cherrpy.HTTPError(400, "invalid ticker")
+		if len(myTickerList):
+			myStock["ticker"] = {"$in": myTickerList}
 	myStock["own"] = checkValidData("own", data, bool, optional=ownOpt)
 	myStock["star"] = checkValidData("star", data, bool, optional=starOpt)
 	myStock["notes"] = checkValidData("notes", data, str, optional=notesOpt)
 
 	for k in ["ticker", "own", "star", "notes"]:
-		if myStock[k] is None:
+		if k in myStock and myStock[k] is None:
 			del myStock[k]
 
-	if tickerCreate:
-		try:
-			t = yfinance.Ticker(myStock["ticker"])
-			info = t.info
-		except:
-			print("Invalid ticker")
-			raise cherrypy.HTTPError(400, "invalid ticker")
+	myTickers = None
+	# if tickerCreate and myTickerList and len(myTickerList):
+	# 	myTickers = yahooquery.Ticker(myTickerList)
+	# 	# try:
+	# 	# 	t = yfinance.Ticker(myStock["ticker"])
+	# 	# 	info = t.info
+	# 	# except:
+	# 	# 	print("Invalid ticker")
+	# 	# 	raise cherrypy.HTTPError(400, "invalid ticker")
 
-	return myStock
+	return myStock, myTickers, myTickerList
 
-def createGetStockQuery(data, skipDBCheck=False):
-	myRequest = {}
+def computeStartHelper(start, interval, limit):
+	multiplier = (start.minute // interval) + 1
+	if multiplier == limit:
+		ret = start.replace(minute=0)
+		ret += datetime.timedelta(hours=1)
+	else:
+		ret = start.replace(minute= interval * multiplier)
+	return ret
 
-	if not skipDBCheck:
-		if checkValidData("ticker", data, list, optional=True):
-			myRequest["ticker"] = []
-			for s in data["ticker"]:
-				if isinstance(s, str):
-					myRequest["ticker"] += s.upper()
-				else:
-					raise cherrypy.HTTPError(400, "invalid ticker")
-			if len(myRequest["ticker"]):
-				myRequest["ticker"] = {"$in": myRequest["ticker"]}
+def computeStart(numDays, interval, end=None):
+	if end is None:
+		end = datetime.datetime.today()
+	start = end - datetime.timedelta(days=numDays) + datetime.timedelta(seconds=10)	#offset to prevent errors
+	#round up to nearest interval
+	start = start.replace(second=0, microsecond=0)
+	#intervals: "1m", "5m", "15m", "30m", "60m"
+	if interval == "1d":
+		start += datetime.timedelta(minutes=1)
+	elif interval == "5m":
+		start = computeStartHelper(start, 5, 12)	#5 * 12 = 60 -> 1 hr
+	elif interval == "15m":
+		start = computeStartHelper(start, 15, 4)	#15 * 4 = 60 -> 1 hr
+	elif interval == "30m":
+		start = computeStartHelper(start, 30, 2)	#30 * 2 = 60 -> 1 hr
+	elif interval == "60m":
+		start = start.replace(minute=0)
+		start += datetime.timedelta(hours=1)
+	else:
+		start = start.replace(hour=0, minute=0)
 
-		myRequest["own"] = checkValidData("own", data, bool, optional=True)
-		if myRequest["own"] is None:
-			del myRequest["own"]
+	return start
 
-		myRequest["star"] = checkValidData("star", data, bool, optional=True)
-		if myRequest["star"] is None:
-			del myRequest["star"]
+def createGetStockQuery(data, tickerOpt=False, ownOpt=False, starOpt=False, notesOpt=False, tickerCreate=True, skipDBCheck=False):
+	# myRequest = {}
 
-		if checkValidData("notes", data, list, optional=True):
-			myNotes = []
-			for s in data["notes"]:
-				if isinstance(s, str):
-					myNotes += Regex(r".*" + s.strip() + r".*", "i")
-			if len(myNotes):
-				myRequest["notes"] = {"$in": myNotes}
+	# if not skipDBCheck:
+	# 	if checkValidData("ticker", data, list, optional=True):
+	# 		myRequest["ticker"] = []
+	# 		for s in data["ticker"]:
+	# 			if isinstance(s, str):
+	# 				myRequest["ticker"].append(s.upper())
+	# 			else:
+	# 				raise cherrypy.HTTPError(400, "invalid ticker")
+	# 		if len(myRequest["ticker"]):
+	# 			myRequest["ticker"] = {"$in": myRequest["ticker"]}
+
+	# 	myRequest["own"] = checkValidData("own", data, bool, optional=True)
+	# 	if myRequest["own"] is None:
+	# 		del myRequest["own"]
+
+	# 	myRequest["star"] = checkValidData("star", data, bool, optional=True)
+	# 	if myRequest["star"] is None:
+	# 		del myRequest["star"]
+
+	# 	if checkValidData("notes", data, list, optional=True):
+	# 		myNotes = []
+	# 		for s in data["notes"]:
+	# 			if isinstance(s, str):
+	# 				myNotes += Regex(r".*" + s.strip() + r".*", "i")
+	# 		if len(myNotes):
+	# 			myRequest["notes"] = {"$in": myNotes}
+	# else:
+	# 	myRequest = checkValidData("ticker", data, str).upper()
+
+	myRequest, myTickers, myTickerList = createStockQuery(data, tickerOpt=tickerOpt, ownOpt=ownOpt, starOpt=starOpt, notesOpt=notesOpt, tickerCreate=tickerCreate)
 
 	if checkValidData("sort", data, str, optional=True) in \
 			["ticker-asc", "ticker-desc", "price-asc", "price-desc", "change-asc", "change-desc", "change-per-asc", "change-per-desc"]:
@@ -187,19 +247,95 @@ def createGetStockQuery(data, skipDBCheck=False):
 	else:
 		sortOrder = "ticker-asc"
 
+	dateInfo = {
+		# "period": None,
+		# "start": None,
+		# "interval": None,
+		# "end": None
+	}
+
 	if checkValidData("period", data, str, optional=True) in \
-			["1d", "3d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"]:
-		period = data["period"]
-	else:
-		period = "1y"
+			["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max", "live"]:
+		if data["period"] is not None:
+			dateInfo["period"] = data["period"]
+	# 	period = data["period"]
+	# else:
+	# 	period = None
+
+	# start = checkValidData("start", data, int, optional=True)
+	# if start is not None:
+	# 	start = datetime.datetime.fromtimestamp(start)
+
+	start = checkValidData("start", data, str, optional=True)
+	if start is not None:
+		try:
+			# if len(start) == 10:	#this shouldn't happen
+			# 	dataInfo["start"] = datetime.strptime(start, "%Y-%m-%d")
+			# elif len(start) == 16:
+			# 	dataInfo["start"] = datetime.strptime(start, "%Y-%m-%d %H:%M")
+			print("recv start:", start)
+			dateInfo["start"] = datetime.datetime.strptime(start, "%Y-%m-%d %H:%M")
+		except:
+			raise cherrypy.HTTPError(400, "invalid start date")
+
+	# if period is None and start is None:
+	# 	# period = "2y"	#default to allow for more zoom
+	# 	period = "1y"	#for debug purposes only (ie chart zoom/pan development)
+	# # if period is not None and start is not None:
+	# # 	raise cherrypy.HTTPError(400, "must provide either period or start")
+
+	# if dateInfo["period"] is None and dateInfo["start"] is None:
+	# 	dateInfo["period"] = "1y"	#default will be period = ytd
+
+	#skip end support for now; keep data on client with no custom start/end dates
+	# end = checkValidData("end", data, int, optional=True)
+	# if end is not None:
+	# 	end = datetime.datetime.fromtimestamp(end)
+
+	# if start is None and end is not None:
+	# 	raise cherrypy.HTTPError(400, "end is only allowed with start")
 
 	if checkValidData("interval", data, str, optional=True) in \
-			["1m", "2m", "5m", "15m", "30m", "60m", "90m", "1h", "1d", "5d", "1wk", "1mo", "3mo"]:
-		interval = data["interval"]
-	else:
-		interval = "1d"
+			["1m", "5m", "15m", "30m", "60m", "1d", "5d", "1wk", "1mo", "3mo"]:
+			if data["interval"] is not None:
+				dateInfo["interval"] = data["interval"]
+	# 	interval = data["interval"]
+	# else:
+	# 	interval = "1d"
 
-	return myRequest, sortOrder, period, interval
+	dateInfo["live"] = checkValidData("live", data, bool, optional=True, default=False)
+
+	#TODO: work on this later, but i think panning for more data is a nice to have feature but not really needed: just go to yahoo
+	#FOR NOW: we currently will return a period of data with the specified interval, and nothing more
+	'''
+	#compute start, if needed
+	#take into account current timestamp, or end
+	if interval == "1m" and period != "live":	#this is to compute the maximum allowed
+		period = None
+		start = computeStart(7, interval) #7 days
+		end = None
+	elif interval == "1m" and period == "live":
+		period = "1d"
+		interval = "1d"	#this will return a single entry with today's latest info
+		start = None
+		end = None
+	elif interval in ["5m", "15m", "30m"]:
+		period = None
+		start = computeStart(60, interval) #60 days
+		end = None
+	elif interval == "60m":
+		period = None
+		start = computeStart(730, interval) #730 days
+		end = None
+		#TODO: maybe lower this? 730 * 7 rows max
+	elif interval in ["1d", "5d", "1wk", "1mo", "3mo"] and start is not None:
+		start = computeStart()
+
+	#we need to somehow specify either period, interval, and a suggested chart start according to the period
+	'''
+
+	# return myRequest, sortOrder, period, interval, myTickers, myTickerList
+	return myRequest, sortOrder, dateInfo, myTickers, myTickerList
 
 def createMusic(data, musicDB):
 	myMusic = dict()

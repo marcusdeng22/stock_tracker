@@ -81,6 +81,7 @@ body {
 
 .infoTable td div {
 	height: 21px;
+	overflow: auto;
 }
 
 .infoLeft {
@@ -89,11 +90,6 @@ body {
 
 .infoRight {
 	float: right;
-}
-
-svg {
-	/*overflow: hidden !important;*/
-	/*z-index: 9999;*/
 }
 
 .homeSVG {
@@ -168,12 +164,34 @@ svg {
 	background-color: #c9cdd0;
 }
 
+.small-btn {
+	width: 35px;
+	height: 35px;
+	padding: 0px;
+}
+
 .skinny-btn {
 	height: 24;
 	margin: 0 10;
 	padding: 0 10;
 	line-height: 0.5;
 }
+
+/*position tooltip in top left*/
+.fc__tooltip {
+	top: -12px !important;
+	left: 20px !important;
+}
+
+/*hide the date from tooltip*/
+.fc__tooltip > div:first-child {
+	display: none;
+}
+
+.fusioncharts-container > svg {
+	cursor: crosshair !important;
+}
+
 
 #editSongSelect > .item {
 	-webkit-touch-callout: none; /* iOS Safari */

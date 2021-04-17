@@ -4,6 +4,9 @@ import cherrypy, os, shutil
 
 from stock_tracker.server import Root
 
+from cherrypy.process.plugins import Monitor
+# from stock_tracker.cache_manager import clearCache
+
 def main():
     #create the download folder if it does not exist
     downloadDir = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.path.join('..', 'download'))
@@ -40,6 +43,9 @@ def main():
         Root(show_debugger=True),
         '/',
         config=server_config)
+
+    #start a monitor for the cache
+    # Monitor(cherrypy.engine, clearCache, frequency=10).subscribe()
 
     # cherrypy.server.socket_host = '0.0.0.0'
     cherrypy.engine.start()

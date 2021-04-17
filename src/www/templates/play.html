@@ -1,0 +1,70 @@
+<div id="playDiv" ng-controller="playCtrl as $ctrl" style="padding: 10px; width: 100%; height: 100%;">
+	<div class="playRow">
+		<div id="playerDiv" class="playCol" style="width: calc(100% - 350px);">
+			<div style="width: 100%;">
+				<div id="mainPlayerContainer" style="width: 100%;" ng-show="focusMode == false || !playDatashare.nowPlaying">
+					Select a playlist first!
+					<!-- player here -->
+				</div>
+			</div>
+			<div id="playerCtrlDiv" style="padding-top: 10px;">
+				<div ng-show="focusMode == true && playDatashare.nowPlaying" class="nowPlaying ellipsis" style="overflow: hidden; white-space: nowrap;">
+					<span>Now playing: {{playDatashare.nowPlaying.name}} - {{playDatashare.nowPlaying.artistStr}}</span>
+				</div>
+				<div id="playerCtrlBtns">
+					<input type="checkbox" id="autoplaySwitch" ng-model="noAutoplay" ng-change="pauseNext()" data-toggle="toggle" data-on="Pause Next" data-off="Autoplay" data-width="110">
+					<input type="checkbox" id="focusSwitch" ng-model="focusMode" ng-change="updatePlayView()" data-toggle="toggle" data-on="Focus Mode" data-off="Watch Mode" data-width="110">
+					<input type="checkbox" id="reccSwitch" ng-model="reccMode" ng-change="updatePlayView()" checked data-toggle="toggle" data-on="Show similar" data-off="Hide similar" data-width="110">
+				</div>
+				<div id="recommended" ng-show="reccMode" style="overflow: auto;">
+					<!-- add recommended list here -->
+				</div>
+			</div>
+		</div>
+		<div id="playerContentsDiv" class="playCol" style="width: 350px;">
+			<div>
+				<input type=text ng-model="playlistData.name" ng-change="(playlistData.contents) ? playlistData.touched = true : ''" id="nowPlayingListTitle">
+				<i id="nowPlaylistListTitleNotif" class="fas fa-exclamation-circle" ng-show="playlistData.renamed != playlistData.name" ng-click="revertName()"></i>
+				<button style="float: right;" class="btn" ng-click="toggleShuffle()"><i class="icon-l fas fa-random" ng-class="shuffleOn ? 'icon-toggled' : ''"></i></button>
+				<button style="float: right;" class="btn" ng-click="toggleRepeat()"><i class="icon-l fas fa-sync-alt" ng-class="repeatOn ? 'icon-toggled' : ''"></i></button>
+			</div>
+			<div lazy-img-container id="currentPlaylistContainer" class="sortableDataContainer" style="height: calc(100% - 46px);">
+				<div ui-sortable="sortablePlayingList" ng-model="playlistData.contents" id="playingSelect" class="list" style="width: 100%; min-height: 100%;">
+					<div ui-sortable-selectable ng-repeat="item in playlistData.contents track by $index" class="item songItem playItem">
+						<div ng-dblclick="selectIndex($index)" style="width: 100%">
+							<div class="playRow2" ng-class="$index==nowPlayingIndex ? 'playingSong' : ''">
+								<div class="item-contents2 number">{{$index + 1}}</div>
+								<!-- <div class="item-contents2"><img lazy-img="item" width="64px"/></div> -->
+								<div class="item-contents2"><img lazy-img="item" height="44px"/></div>
+								<!-- <div class="item-contents2"><img ng-src="{{getThumbnail(item)}}" width="64px"/></div> -->
+								<div class="item-contents2 attr">
+									<div title="{{item.name}}" class="item-contents2 attr">{{item.name}}</div>
+									<div title="{{item.artistStr}}" class="item-contents2 attr">{{item.artistStr}}</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div style="margin-top: 10px;">
+				<button id="playPlaylist" class="btn btn-success" ng-disabled="songIndices.length != 1" ng-click="selectIndex(songIndices)">Play</button>
+				<button id="saveNewPlaylist" class="btn btn-primary" ng-disabled="!playlistData.touched" ng-click="savePlaylist()">Save</button>
+				<button id="playEditSong" class="btn btn-primary" ng-disabled="songIndices.length == 0" ng-click="editSelected()">Edit</button>
+				<button id="removeFromPlaying" class="btn btn-danger" ng-disabled="songIndices.length == 0" ng-click="removeSelected()">Remove</button>
+				<button class="btn btn-success" ng-click="downloadPlaylist()" ng-disabled="!playlistData.contents || playlistData.contents.length == 0">Download</button>
+			</div>
+		</div>
+	</div>
+
+	<div id="nowPlayingEditMusicModal" class="modal" style="display: none;">
+		<div class="modal-content" ng-off-close="closeEditSongModal()" style="width:75%;">
+			<div id="nowPlayingEditTemplate">
+				<!-- put file here -->
+			</div>
+			<div>
+				<button type="button" class="col-md-3 btn btn-success" ng-disabled="songDatashare.checkSongFields()" ng-click="submitEditSong()">Update</button>
+				<button type="button" class="col-md-3 btn btn-danger" ng-click="closeEditSongModal()">Cancel</button>
+			</div>
+		</div>
+	</div>
+</div>

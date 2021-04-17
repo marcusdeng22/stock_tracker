@@ -1,0 +1,91 @@
+<div id="listEditSongDiv" ng-controller="listEditSongCtrl as $ctrl" style="height: 100%; width: 100%">
+	<ul class="nav nav-tabs" role="tablist">
+		<li class="nav-item"><a id="songListTab" class="nav-link active" data-toggle="tab" data-target="#existingSongSearch" role="tab">Songs</a></li>
+		<li class="nav-item"><a id="songEditTab" class="nav-link" data-toggle="tab" data-target="#addNewSong" role="tab">Add New Song</a></li>
+	</ul>
+
+	<div class="tab-content" style="margin: 10px; height: calc(100% - 50px);">
+		<div id="existingSongSearch" class="existingSongSearch tab-pane show active" role="tabpanel">
+			<div>
+				<div data-tip="Use commas to separate entries" style="width: 100%">
+					<input type="text" id="songNameSearch" ng-model="songNameSearch" ng-model-options='{debounce: 500}' ng-change="advSearch()" placeholder="Search for song name" style="width: 100%;">
+				</div>
+				<a id="editCollapse" data-toggle="collapse" data-target=".songCollapse" href="">Advanced Search</a>
+				<div id="editSongAdvSearchContainer" class="songCollapse collapse" style="padding-bottom: 10px;">
+					<div id="songDatePicker" class="input-daterange input-group" style="z-index: 1;">
+						<span class="input-group-addon">Dates:</span>
+						<input type="text" class="input-sm form-control" name="start" id="songStartDate" ng-model="songStartDate"/>
+						<span class="input-group-addon">to</span>
+						<input type="text" class="input-sm form-control" name="end" id="songEndDate" ng-model="songEndDate"/>
+						<span class="input-group-addon">AND</span>
+					</div>
+					<div class="input-group">
+						<span class="input-group-addon">Includes artists:</span>
+						<div data-tip="Use commas to separate entries">
+							<input type="text" class="song-search input-sm form-control" ng-model="songArtistSearch">
+						</div>
+						<span class="input-group-addon">OR</span>
+						<!--TODO: add a drop down for artists-->
+					</div>
+					<div class="input-group">
+						<span class="input-group-addon">Includes albums:</span>
+						<div data-tip="Use commas to separate entries">
+							<input type="text" class="song-search input-sm form-control" ng-model="songAlbumSearch">
+						</div>
+						<span class="input-group-addon">OR</span>
+						<!--TODO: add a drop down for albums-->
+					</div>
+					<div class="input-group">
+						<span class="input-group-addon">Includes genres:</span>
+						<div data-tip="Use commas to separate entries">
+							<input type="text" class="song-search input-sm form-control" ng-model="songGenreSearch">
+						</div>
+						<!--TODO: add a drop down for genres-->
+					</div>
+					<div class="input-group">
+						<span class="input-group-addon">Includes URLs:</span>
+						<div data-tip="Use commas to separate entries">
+							<input type="text" class="song-search input-sm form-control" ng-model="songUrlSearch">
+						</div>
+					</div>
+					<div class="input-group">
+						<button type="button" id="advSongSearchBtn" ng-click="advSearch()">Search</button>
+						<button type="button" id="clearAdvSongSearchBtn" ng-click="clearSearch()" style="float: right;">Clear</button>
+					</div>
+				</div>
+			</div>
+			<div>
+				<button type="button" ng-click="changeSort('name')">Name<i ng-class="sortGlyph('name')" style="left: 2px;"></i></button>
+				<button type="button" ng-click="changeSort('relev')">Relevance<i ng-class="sortGlyph('relev')" style="left: 2px;"></i></button>
+				<span id="songSearchCount" ng-model="songDatashare">{{songDatashare.displayedSongData.length}} of {{songDatashare.totalResults}} Results</span>
+				<button type="button" ng-click="changeSort('date')" style="float: right;">Date<i ng-class="sortGlyph('date')" style="left: 2px;"></i></button>
+			</div>
+			<div lazy-img-container class="joinCollapseContainer sortableDataContainer songCollapse collapse show" style="height: calc(100% - 85px);">
+				<div infinite-scroll="songDatashare.loadDisplayedSongData()" infinite-scroll-disabled="songDatashare.dataNotReady" infinite-scroll-distance="0.75" infinite-scroll-parent>
+					<div ui-sortable="sortableSongs" ng-model="songDatashare.displayedSongData" id="editSongSelect" class="ng-cloak list" style="width: 100%; min-height: 100%;">
+						<div ui-sortable-selectable ng-repeat="song in songDatashare.displayedSongData track by $index" class="item songItem" ng-init="$last && addSelectClass()">
+							<div ng-dblclick="submitDblClk()" class="playRow2">
+								<!-- <div class="item-contents2"><img lazy-img="song" width="64px"/></div> -->
+								<div class="item-contents2"><img lazy-img="song" height="44px"/></div>
+								<!-- <div class="item-contents2"><img ng-src="{{getThumbnail(song)}}" width="64px"/></div> -->
+								<div class="item-contents2 attr">
+									<div title="{{song.name}}" class="item-contents2 attr">{{song.name}}</div>
+									<div title="{{song.artistStr}}" class="item-contents2 attr">{{song.artistStr}}</div>
+								</div>
+								<div class="item-contents2 date">{{song.dateStr}}</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="addNewSong" class="addNewSong tab-pane" role="tabpanel" style="overflow: auto;">
+			<!-- <p>new song here</p> -->
+			<%include file="editSong.html"/>
+		</div>
+	</div>
+</div>
+
+<script type="text/javascript">
+	
+</script>

@@ -1,0 +1,31 @@
+<div id="songDiv" ng-controller="songCtrl as $ctrl">
+	<div id="songEditDiv">
+	</div>
+	<div id="songEditButtons" style="margin: 5px 10px;">
+		<div id="songDivListBtns" ng-show="songDatashare.tab == '#existingSongSearch'">
+			<button type="button" class="btn btn-success" ng-click="playSelected()" ng-disabled="songDatashare.songIndices.length == 0">Play Selected</button>
+			<button type="button" class="btn btn-primary" ng-click="editSong()" ng-disabled="songDatashare.songIndices.length == 0">Edit Song</button>
+			<button type="button" class="btn btn-danger" ng-click="removeSongs()" ng-disabled="songDatashare.songIndices.length == 0">Remove Selected</button>
+			<button type="button" class="btn btn-success" ng-click="downloadSongs()" ng-disabled="songDatashare.songIndices.length == 0">Download</button>
+			<button type="button" class="btn btn-success" ng-click="selectAll()" style="float: right;">Select All</button>
+		</div>
+		<div id="songDivEditBtns" ng-show="songDatashare.tab == '#addNewSong'">
+			<button type="button" class="btn btn-success" ng-click="addSong()" ng-disabled="songDatashare.checkSongFields()">Add Song</button>
+			<button type="button" class="btn btn-success" ng-click="addAndDownload()" ng-disabled="songDatashare.checkSongFields()">Add and Download</button>
+			<button type="button" class="btn btn-danger" ng-click="cancelAdd()">Cancel</button>
+		</div>
+	</div>
+
+	<div id="songEditModal" class="modal" style="display: none;">
+		<div class="modal-content" ng-off-close="closeEdit()" style="width:75%;">
+			<div id="songEditTemplate">
+				<!-- put file here -->
+				<%include file="list_edit_song.html"/>
+			</div>
+			<div>
+				<button type="button" class="col-md-3 btn btn-success" ng-disabled="songDatashare.checkSongFields()" ng-click="submitEditSong()">Update</button>
+				<button type="button" class="col-md-3 btn btn-danger" ng-click="closeEdit()">Cancel</button>
+			</div>
+		</div>
+	</div>
+</div>

@@ -24,7 +24,7 @@ app.controller('NavCtrl', ['$scope', '$location', '$window', '$http',
 			$("#researchNavbar").addClass("active");
 		}
 		else if (hash == 'explore') {
-			$scope.activeId = "#exploreNavbar";
+			$scope.activeId = "#exploreDiv";
 			$("#exploreNavbar").addClass("active");
 		}
 		else if (hash == "logout") {

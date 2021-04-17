@@ -1,0 +1,29 @@
+<div id="editSongDiv" ng-controller="editSongCtrl as $ctrl" style="height: 100%; width: 100%">
+	<div id="addSongNotifCompl" class="toast alert-success" role="alert" data-delay="3000" style="position: absolute; right: 50px;">
+		<div class="toast-body" style="font-size: large;">Successfully added!</div>
+	</div>
+	<table class="table ng-cloak" style="width: 100%; display: table; margin-bottom: 5px;">
+		<tr ng-repeat="key in songFields">
+			<td>{{key}}</td>
+			<td ng-if="key!='url'">
+				<div ng-if="key=='artist'" data-tip="Use commas to separate entries">
+					<input type="text" ng-model="songDatashare.editData[key]" ng-enter="enterSubmit()" style="width: 100%;">
+				</div>
+				<input ng-if="key!='artist'" type="text" ng-model="songDatashare.editData[key]" ng-enter="enterSubmit()" style="width: 100%;">
+			</td>
+			<td ng-if="key=='url'">
+				<input id="newSongUrlInput" type="text" ng-model="songDatashare.editData[key]" ng-paste="previewSong()" ng-enter="previewSong()" style="width: calc(100% - 45px); vertical-align: bottom;">
+				<button type="button" class="btn" ng-click="previewSong()"><i class="icon fas fa-sync-alt" style="top: 0px;"></i></button>
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2">
+				<div ng-repeat="key in songNumFields" style="float: left;">
+					<span>{{key}}</span>
+					<input type="text" ng-model="songDatashare.editData[key]" style="width: 45px">
+				</div>
+			</td>
+		</tr>
+	</table>
+	<div id="previewDisplay" style="height: 360px; padding-bottom: 5px;"></div>
+</div>

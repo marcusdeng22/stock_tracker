@@ -3,14 +3,16 @@
 		<div style="display: flex; flex-direction: column; width: auto; height: 100%;">
 			<div id="research-top" style="flex: 0 0 50px; border: 1px solid white;">
 				<div style="margin: 5px; text-align: center;">
-					<input type="text" id="research-searchbar" data-toggle="dropdown" placeholder="Search for a ticker" ng-model="searchText" ng-model-options="{debounce: 500}" ng-change="searchTicker()" ng-enter="submitTicker(0, true)">
-					<div id="research-stock-list" class="dropdown-menu" ng-show="searchResults.length">
-						<div class="dropdown-item" ng-repeat="ticker in searchResults" ng-click="submitTicker($index)">
-								<div style="width: 70px;" class="infoLeft">{{ticker.ticker}}</div>
-								<div style="width: 340px; overflow-x: hidden; text-overflow: ellipsis;" class="infoLeft">{{ticker.name}}</div>
-								<div class="infoLeft">{{ticker.type}} - {{ticker.exchange}}</div>
+					<form ng-submit="searchTicker(true)">
+						<input type="text" id="research-searchbar" data-toggle="dropdown" placeholder="Search for a ticker" ng-model="searchText" ng-model-options="{debounce: 500}" ng-change="searchTicker()">
+						<div id="research-stock-list" class="dropdown-menu" ng-show="searchResults.length">
+							<div class="dropdown-item" ng-repeat="ticker in searchResults" ng-click="submitTicker($index)">
+									<div style="width: 70px;" class="infoLeft">{{ticker.ticker}}</div>
+									<div style="width: 340px; overflow-x: hidden; text-overflow: ellipsis;" class="infoLeft">{{ticker.name}}</div>
+									<div class="infoLeft">{{ticker.type}} - {{ticker.exchange}}</div>
+							</div>
 						</div>
-					</div>
+					</form>
 				</div>
 			</div>
 			<div id="research-mid" style="flex: 0 0 450px; border: 1px solid white;">
@@ -33,7 +35,8 @@
 									<a target="_blank" href="https://etf.com/{{ticker.ticker}}" class="infoLeft icon icon-box-arrow-up-right" style="margin-top: 5px;"></a>
 								</div>
 								<div ng-show="ticker.data.fields.quoteType == 'Equity'" style="margin-top: 3px; width: 100%;">
-									<div style="margin-top: 3px;" ng-show="ticker.data.fields.quoteType == 'Equity'">to yahoo.com</div>
+									<a target="_blank" href="https://finance.yahoo.com/quote/{{ticker.ticker}}?p={{ticker.ticker}}" class="infoLeft">Yahoo!</a>
+									<a target="_blank" href="https://finance.yahoo.com/quote/{{ticker.ticker}}?p={{ticker.ticker}}" class="infoLeft icon icon-box-arrow-up-right" style="margin-top: 5px;"></a>
 								</div>
 
 								<div style="margin-top: 3px; position: static; width: 100%; overflow-y: auto;">
@@ -127,9 +130,14 @@
 					</div>
 					<div style="flex: 1 0 33%;">
 						<div class="researchRow">
-						<div ng-show="!(ticker | isEmpty)" style="position: relative; width: calc(33vw - 10px); height: 100%; border: 1px solid rgb(106, 109, 111);">
-								<chart ticker-id="ticker.ticker" ticker-data="ticker.data.history" chart-suffix="-researchChart"></chart>
-						</div>
+							<!-- <div ng-show="!(ticker | isEmpty)" style="position: relative; width: calc(33vw - 10px); height: 100%; border: 1px solid rgb(106, 109, 111); comment="orig"> -->
+							<!-- <div style="position: relative; float: left; width: calc(33vw - 10px); height: 35px; border: 1px solid blue;"></div>
+							<div ng-show="!(ticker | isEmpty)" style="position: relative; width: calc(33vw - 10px); height: calc(100% - 30px); border: 1px solid rgb(106, 109, 111); float: left;">
+									<chart ticker-id="ticker.ticker" ticker-data="ticker.data.history" chart-suffix="-researchChart"></chart>
+							</div> -->
+
+							<!-- <chart ticker-id="ticker.ticker" ticker-data="ticker.data.history" chart-suffix="-researchChart" control-position="top" display-ctrl="!(ticker | isEmpty)"></chart> -->
+							<chart ticker="ticker" chart-suffix="-researchChart" control-position="top" display-ctrl="!(ticker | isEmpty)"></chart>
 						</div>
 					</div>
 					<div style="flex: 1 0 33%;">

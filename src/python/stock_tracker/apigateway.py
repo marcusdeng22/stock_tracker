@@ -20,6 +20,12 @@ import stock_tracker.utils as m_utils
 
 import datetime
 from operator import itemgetter
+#import ratelimit	#this causes issues with shutting down the server, replacing with random delay
+import random
+import pandas
+
+TIME_LIMIT = 0.2	#0.2 second limit
+ATTEMPT_LIMIT = 5	#5 attempts before erroring
 
 absDir = os.getcwd()
 
@@ -30,9 +36,12 @@ CLOSE_TIME = " 15:00:00-06:00"	#CST time
 
 import signal
 import concurrent.futures
-import yfinance
+# import yfinance
 import numpy
+import yahooquery
 import investpy
+
+NO_VAL = "N/A"
 
 exit = threading.Event()
 def quit(signo, _frame):
@@ -58,6 +67,31 @@ def authUser(func):
 
 	return decorated_function
 
+'''
+@functools.lru_cache(maxsize=128)
+def getTicker(tickerId):
+	try:
+		ticker = yfinance.Ticker(ticker)
+	except:
+		print("ticker", ticker, "does not exist")
+		return {}		#error!
+	errCount = 0
+	ret = {}
+	while errCount < 5:
+		try:
+			ret = {
+				"tickerObj": ticker,
+				"info": ticker.info
+			}
+			#sleep here?
+			break
+		except:
+			print("error getting ticker {} info".format(tickerId))
+			errCount += 1
+
+	return ret
+'''
+
 def estimateNumber(value):
 	ret = str(value)
 	thresholds = [(12, "T"), (9, "B"), (6, "M"), (3, "K")]
@@ -68,12 +102,268 @@ def estimateNumber(value):
 
 def convertToPercent(value, round_to=3):
 	#this expects a raw decimal value
-	return ("{:0." + str(round_to) + "f}%").format(value)
+	return ("{:+0." + str(round_to) + "f}%").format(value)
+
+def convertToSigned(value):
+	return "{:+0.3f}".format(value)
 
 def computeChange(lastPrice, previousClose):
 	diff = lastPrice - previousClose
-	per = convertToPercent(diff / lastPrice)
-	return float("{:0.3f}".format(diff)), per
+	per = convertToPercent(diff / lastPrice * 100)
+	return "{:0.3f}".format(diff), per
+
+# @ratelimit.sleep_and_retry
+# @ratelimit.limits(calls=1, period=TIME_LIMIT)
+'''
+def extractHistory(ticker, period="1y", start=None, end=None, interval="1d", attempt=1):
+	if attempt >= ATTEMPT_LIMIT:
+		print("FAILED TO RETREIVE {} HISTORY AFTER {} ATTEMPTS".format(ticker, ATTEMPT_LIMIT))
+		return [], 0	#error!
+
+	try:
+		if isinstance(ticker, str):
+			ticker= yfinance.Ticker(ticker)
+		elif isinstance(ticker, yfinance.ticker.Ticker):
+			pass
+		else:
+			raise Exception("invalid ticker object type")
+	except:
+		print("ticker", ticker, "does not exist")
+		return [], 0	#error!
+
+	#get history
+	#don't get dividends and splits, round to 3 decimals
+	try:
+		history = ticker.history(period=period, interval=interval, auto_adjust=True, actions=False)
+	except:
+		print("FAILED TO RETREIVE {} HISTORY; ATTEMPT {} of {}".format(ticker.ticker, attempt, ATTEMPT_LIMIT))
+		time.sleep(random.uniform(0.01, 0.2))	#add a small random delay
+		return extractHistory(ticker, period, start, end, interval, attempt+1)
+
+	# history["avg20"] = history["Close"].rolling(20).mean()
+
+	history = numpy.round(history, 3)
+	history = history.reset_index()
+	if "Date" in history:
+		# history["Date"] = history["Date"].astype(numpy.int64) // 10**6
+		history["Date"] = history["Date"].apply(lambda x: str(x))
+	if "Datetime" in history:
+		# history["Datetime"] = history["Datetime"].astype(numpy.int64) // 10**6
+		history["Datetime"] = history["Datetime"].dt.tz_localize(None).apply(lambda x: str(x))
+
+	lastPrice = history["Close"].tail(1).item()
+
+	history.fillna("", inplace=True)
+
+	history.columns = ["t", "o", "h", "l", "c", "v"]
+	# history.columns = ["t", "o", "h", "l", "c", "v", "avg20"]
+
+	#convert to format for library to parse
+	# history = history.to_dict("records")
+	history = history.values.tolist()
+
+	return history, lastPrice
+'''
+
+def extractHistory(ticker, period="1y", start=None, end=None, interval="1d"):
+	#flatten start date and extract the start period; do the same for end
+	startDate = startTime = endDate = endTime = None
+	if start:
+		startDate = start.date()
+		startTime = start.time()
+	if end:
+		endDate = end.date()
+		endTime = end.time() 
+	history = ticker.history(period=period, interval=interval, start=startDate, end=endDate, adj_ohlc=True)
+	if isinstance(history, dict):
+		print("HISTORY IS DICT")
+		print(ticker, period, start, end, interval)
+		print(history)
+	# try:
+	if isinstance(history.index.get_level_values(1)[0], pandas.Timestamp):
+		# print("index is timestamp")
+		history = history.loc[(slice(None), slice(start, end)), :]
+	else:
+		# print("index is date")
+		history = history.loc[(slice(None), slice(startDate, endDate)), :]
+	# except:
+	# 	print("ERROR SLICING")
+	# 	print(history)
+	#process: fill NaN to 0 and round to 3 decimals
+	history.fillna(0, inplace=True)
+	history = numpy.round(history, 3)
+	#reset date index and convert date
+	history = history.reset_index("date")
+	history["date"] = history["date"].apply(lambda x: x.strftime("%Y-%m-%d %H:%M"))
+	# history["date"] = history["date"].apply(lambda x: str(x))
+	#columns are: date, open, low, high, close, volume, dividends, but not guaranteed in order, and dividends may not be present (this is ok)
+	#order columns
+	col = ["date", "open", "high", "low", "close", "volume"]
+	if "dividends" in history:
+		col.append("dividends")
+		# history = history.astype({"dividends": float}, copy=True)
+	history = history[col]
+	# history = history.astype({x: float for x in ["open", "high", "low", "close"]}, copy=True)
+	# history = history.astype({"volume": int}, copy=True)
+	#extract per ticker
+	ret = {}
+	for t in ticker.symbols:
+		# ret[t] = history.loc[t].values.tolist()
+		temp = history.loc[t].values
+		if temp.ndim == 1:
+			print("temp:", type(temp), temp)
+			# temp = numpy.ndarray((2,), buffer=temp)
+			# temp = numpy.asarray([temp])
+			temp = [str(temp[0]), *[float(x) for x in temp[1:]]]
+			temp[5] = int(temp[5])
+			ret[t] = [temp]
+		else:
+			ret[t] = temp.tolist()
+		#fix for conversion?
+		# if len(ret[t]) == 1:
+		# 	ret[t] = [ret[t]]
+		# if len(ticker.symbols) == 1:
+		# 	print("copy ret:", temp.size, temp.ndim, list([x, type(x)] for x in temp.tolist()))
+	# if len(ret) == 1:
+	# 	print("extract ret:", ret, type(temp), list([x, type(x)] for x in ret[ticker.symbols[0]][0]))
+	return ret
+"""
+# @ratelimit.sleep_and_retry
+# @ratelimit.limits()
+def getInfo(ticker, attempt=1):
+	if attempt >= ATTEMPT_LIMIT:
+		print("FAILED TO RETRIEVE {} INFO AFTER {} ATTEMPTS".format(ticker.ticker, ATTEMPT_LIMIT))
+		return
+	try:
+		return ticker.info
+	except:
+		print("FAILED TO RETRIEVE {} INFO; ATTEMPT {} of {}".format(ticker.ticker, attempt, ATTEMPT_LIMIT))
+		time.sleep(random.uniform(0.01, 0.2))	#add a small random delay
+		return getInfo(ticker, attempt+1)
+
+def infoLoop(info, keys):
+	myInfo = {}
+	#fix individual values to rounded strings
+	for k in keys:
+		if k not in info:
+			myInfo[k] = "N/A"
+			print(k, "not in info")
+			continue
+		v = info[k]
+		if k in ("marketCap", "totalAssets",):
+			if v is not None:
+				v = estimateNumber(v)
+		elif k == "yield":
+			if v is not None:
+				v = convertToPercent(v * 100)
+		elif k == "dividendRate":
+			if v is not None:
+				v = "{:0.3f}".format(v)
+		elif k == "dividendYield":
+			if v is not None:
+				v = convertToPercent(v * 100, 2)
+		elif k == "exDividendDate":
+			if v is not None:
+				v = str(datetime.datetime.fromtimestamp(v).date() + datetime.timedelta(days=1))	#fix off by one error
+		elif k == "trailingEps":
+			if v is not None:
+				v = "{:0.3f}".format(v)
+		elif k in ("volume", "averageVolume",):
+			if v is not None:
+				v = "{:,}".format(v)
+
+		myInfo[k] = v
+
+	if "bid" in myInfo and "bidSize" in myInfo and myInfo["bid"] is not None and myInfo["bidSize"] is not None:
+		myInfo["bid"] = "{} x {}".format(myInfo["bid"], myInfo["bidSize"])
+		del myInfo["bidSize"]
+	else:
+		myInfo["bid"] = "N/A"
+	if "ask" in myInfo and "askSize" in myInfo and myInfo["ask"] is not None and myInfo["askSize"] is not None:
+		myInfo["ask"] = "{} x {}".format(myInfo["ask"], myInfo["askSize"])
+		del myInfo["askSize"]
+	else:
+		myInfo["ask"] = "N/A"
+
+	if "dayLow" in myInfo and "dayHigh" in myInfo and myInfo["dayLow"] is not None and myInfo["dayHigh"] is not None:
+		myInfo["dayRange"] = "{} - {}".format(myInfo["dayLow"], myInfo["dayHigh"])
+	else:
+		myInfo["dayRange"] = "N/A"
+	if "fiftyTwoWeekLow" in myInfo and "fiftyTwoWeekHigh" in myInfo and myInfo["fiftyTwoWeekLow"] is not None and myInfo["fiftyTwoWeekHigh"] is not None:
+		myInfo["yearRange"] = "{} - {}".format(myInfo["fiftyTwoWeekLow"], myInfo["fiftyTwoWeekHigh"])
+	else:
+		myInfo["yearRange"] = "N/A"
+
+	if "beta" in info and info["beta"] is not None:
+		myInfo["beta"] = info["beta"]
+	elif "beta3Year" in info and info["beta3Year"] is not None:
+		myInfo["beta"] = info["beta3Year"]
+	else:
+		myInfo["beta"] = None
+
+	if myInfo["beta"] is not None:
+		myInfo["beta"] = "{:0.3f}".format(myInfo["beta"])
+	else:
+		myInfo["beta"] = "N/A"
+
+	if "dividendRate" in myInfo and "dividendYield" in myInfo and myInfo["dividendRate"] is not None and myInfo["dividendRate"] != "N/A":
+		print(myInfo["longName"], myInfo["dividendRate"], myInfo["dividendYield"])
+		myInfo["dividendQuote"] = myInfo["dividendRate"] + " (" + myInfo["dividendYield"] + ")"
+	else:
+		myInfo["dividendQuote"] = "N/A"
+
+	return myInfo
+
+def quickExtractInfo(kwargs):
+	#guaranteed to be in data
+	ticker = kwargs["ticker"]
+	period = kwargs["period"]
+	# start = kwargs["start"]
+	# end = kwargs["end"]
+	interval = kwargs["interval"]
+
+	doInfo = kwargs["doInfo"] if "skipInfo" in kwargs else True
+
+	try:
+		ticker = yfinance.Ticker(ticker)
+	except:
+		print("ticker", ticker, "does not exist")
+		return {}		#error!
+
+	history, lastPrice = extractHistory(ticker, period=period, interval=interval)
+
+	#get info
+	if doInfo:
+		try:
+			info = getInfo(ticker)
+		except:
+			return {}	#error!
+
+		myInfo = infoLoop(info, ["previousClose", "bid", "bidSize", "ask", "askSize", "dayLow", "dayHigh", "volume", "averageVolume"])
+
+		myFields = {
+			"field0": ["Previous Close:", myInfo["previousClose"]],
+			"field2": ["Bid:", myInfo["bid"]],
+			"field3": ["Ask:", myInfo["ask"]],
+			"field4": ["Day's Range:", myInfo["dayRange"]],
+			"field6": ["Volume:", myInfo["volume"]],
+			"field7": ["Avg. Volume:", myInfo["averageVolume"]],
+		}
+		#compute the change from the latest record
+		change, changePercent = computeChange(lastPrice, myInfo["previousClose"])
+
+		return {
+			"history": history,
+			"fields": myFields,
+			"change": change,
+			"changePercent": changePercent,
+			"lastPrice": "{:0.3f}".format(lastPrice)
+		}
+	else:
+		return {
+			"history": history,
+			"lastPrice": "{:0.3f}".format(lastPrice)
+		}
 
 def extractInfo(kwargs):
 	ticker = kwargs["ticker"]
@@ -85,6 +375,7 @@ def extractInfo(kwargs):
 	except:
 		print("ticker", ticker, "does not exist")
 		return {}		#error!
+	'''
 	#get history
 	#don't get dividends and splits, round to 3 decimals
 	history = numpy.round(ticker.history(period=period, interval=interval, auto_adjust=True, actions=False), 3)
@@ -116,78 +407,21 @@ def extractInfo(kwargs):
 
 	#convert to format for d3 to parse
 	history = history.to_dict("records")
+	'''
+
+	history, lastPrice = extractHistory(ticker, period=period, interval=interval)
+	print("got history {}".format(ticker.ticker))
 
 	#pull info
-	info = ticker.info
-	myInfo = {}
-
-	for k in ["previousClose", "open", "bid", "bidSize", "ask", "askSize", "dayLow", "dayHigh", "fiftyTwoWeekLow", \
+	try:
+		info = getInfo(ticker)
+		print("got info {}".format(ticker.ticker))
+	except:
+		return {}	#error!
+	myInfo = infoLoop(info, ["previousClose", "open", "bid", "bidSize", "ask", "askSize", "dayLow", "dayHigh", "fiftyTwoWeekLow", \
 			"fiftyTwoWeekHigh", "volume", "averageVolume", "quoteType", "sector", "totalAssets", "marketCap", "navPrice", \
 			"trailingEps", "trailingPE", "yield", "dividendRate", "dividendYield", "exDividendDate", \
-			"longName", "sector", "longBusinessSummary"]:
-		#fix individual values to rounded strings
-		if k not in info:
-			myInfo[k] = "N/A"
-			print(k, "not in info")
-			continue
-		v = info[k]
-		if k in ("marketCap", "totalAssets",):
-			if v is not None:
-				v = estimateNumber(v)
-		elif k == "yield":
-			if v is not None:
-				v = convertToPercent(v * 100)
-		elif k == "dividendRate":
-			if v is not None:
-				v = "{:0.3f}".format(v)
-		elif k == "dividendYield":
-			if v is not None:
-				v = convertToPercent(v * 100, 2)
-		elif k == "exDividendDate":
-			if v is not None:
-				v = str(datetime.datetime.fromtimestamp(v).date() + datetime.timedelta(days=1))	#fix off by one error
-		elif k == "trailingEps":
-			if v is not None:
-				v = "{:0.3f}".format(v)
-		elif k in ("volume", "averageVolume",):
-			if v is not None:
-				v = "{:,}".format(v)
-
-		myInfo[k] = v
-
-	if myInfo["bid"] and myInfo["bidSize"]:
-		myInfo["bid"] = "{} x {}".format(myInfo["bid"], myInfo["bidSize"])
-		del myInfo["bidSize"]
-	if myInfo["ask"] and myInfo["askSize"]:
-		myInfo["ask"] = "{} x {}".format(myInfo["ask"], myInfo["askSize"])
-		del myInfo["askSize"]
-
-	if myInfo["dayLow"] and myInfo["dayHigh"]:
-		myInfo["dayRange"] = "{} - {}".format(myInfo["dayLow"], myInfo["dayHigh"])
-		del myInfo["dayLow"]
-		del myInfo["dayHigh"]
-	if myInfo["fiftyTwoWeekLow"] and myInfo["fiftyTwoWeekHigh"]:
-		myInfo["yearRange"] = "{} - {}".format(myInfo["fiftyTwoWeekLow"], myInfo["fiftyTwoWeekHigh"])
-		del myInfo["fiftyTwoWeekLow"]
-		del myInfo["fiftyTwoWeekHigh"]
-
-	if info["beta"] is not None:
-		myInfo["beta"] = info["beta"]
-	elif info["beta3Year"] is not None:
-		myInfo["beta"] = info["beta3Year"]
-	else:
-		myInfo["beta"] = None
-
-	if myInfo["beta"] is not None:
-		myInfo["beta"] = "{:0.3f}".format(myInfo["beta"])
-	else:
-		myInfo["beta"] = "N/A"
-
-	if myInfo["dividendRate"] is not None and myInfo["dividendRate"] != "N/A":
-		print(myInfo["longName"], myInfo["dividendRate"], myInfo["dividendYield"])
-		myInfo["dividendQuote"] = myInfo["dividendRate"] + " (" + myInfo["dividendYield"] + ")"
-	else:
-		myInfo["dividendQuote"] = "N/A"
+			"longName", "sector", "longBusinessSummary"])
 
 	#handle individual types
 	infoETF = ["YTD Daily Total Return", "Expense Ratio (net)", "Inception Date"]
@@ -266,6 +500,168 @@ def extractInfo(kwargs):
 		"changePercent": changePercent,
 		"lastPrice": "{:0.3f}".format(lastPrice)
 	}
+"""
+#pass format_key=None if chaining to extract internal dictionaries
+def extract(key, data, format_key="fmt"):
+	if not isinstance(data, dict):
+		return NO_VAL
+	ret = NO_VAL
+	if key in data:
+		if format_key is not None and isinstance(data[key], dict):
+			if format_key in data[key]:
+				ret = data[key][format_key]
+			elif "fmt" in data[key]:
+				ret = data[key]["fmt"]
+		else:
+			ret = data[key]
+	if isinstance(ret, dict) and len(ret) == 0:
+		ret = NO_VAL
+	return ret
+
+def extractSharedFields(innerFields, info):
+	innerFields["field0"] = ["Previous Close:", extract("previousClose", info["summaryDetail"])]
+	innerFields["field1"] = ["Open:", extract("open", info["summaryDetail"])]
+	bid = extract("bid", info["summaryDetail"])
+	bidSize = extract("bidSize", info["summaryDetail"], format_key="raw")
+	ask = extract("bid", info["summaryDetail"])
+	askSize = extract("askSize", info["summaryDetail"], format_key="raw")
+	if bid != NO_VAL and bidSize != NO_VAL:
+		bid = "{} x {}".format(bid, bidSize)
+	else:
+		bid = NO_VAL
+	if ask != NO_VAL and askSize != NO_VAL:
+		ask = "{} x {}".format(ask, askSize)
+	else:
+		ask = NO_VAL
+	innerFields["field2"] = ["Bid:", bid]
+	innerFields["field3"] = ["Ask:", ask]
+	dayLow = extract("dayLow", info["summaryDetail"])
+	dayHigh = extract("dayHigh", info["summaryDetail"])
+	yearLow = extract("fiftyTwoWeekLow", info["summaryDetail"])
+	yearHigh = extract("fiftyTwoWeekHigh", info["summaryDetail"])
+	if dayLow != NO_VAL and dayHigh != NO_VAL:
+		dayRange = "{} - {}".format(dayLow, dayHigh)
+	else:
+		dayRange = NO_VAL
+	if yearLow != NO_VAL and yearHigh != NO_VAL:
+		yearRange = "{} - {}".format(yearLow, yearHigh)
+	else:
+		yearRange = NO_VAL
+	innerFields["field4"] = ["Day's Range:", dayRange]
+	innerFields["field5"] = ["52 Week Range:", yearRange]
+	innerFields["field6"] = ["Volume:", extract("volume", info["summaryDetail"], format_key="longFmt")]
+	innerFields["field7"] = ["Avg. Volume:", extract("averageVolume", info["summaryDetail"], format_key="longFmt")]
+
+def extractInfo(ticker, live=False):
+	if live:
+		modules = ["price", "summaryDetail"]
+	else:
+		modules = ["price", "summaryProfile", "summaryDetail", "fundProfile", "defaultKeyStatistics", "calendarEvents", "financialData"]
+	info = ticker.get_modules(modules)
+	#process each module per ticker
+	ret = {}
+	for tickerName, t in info.items():
+		# if live:	#this is for a single module only; DEPRECATED
+		# 	ret[tickerName] = {
+		# 		"changePercent": extract("regularMarketChangePercent", t),
+		# 		"change": extract("regularMarkChange", t),						#does this need to be raw?
+		# 		"lastPrice": extract("regularMarketPrice", t)
+		# 	}
+		# 	continue
+		#price; common for live or full info
+		inner = {
+			# "changePercent": convertToPercent(extract("regularMarketChangePercent", t["price"]) * 100),
+			"changePercent": extract("regularMarketChangePercent", t["price"]),
+			"change": convertToSigned(extract("regularMarketChange", t["price"], format_key="raw")),						#does this need to be raw?
+			"lastPrice": extract("regularMarketPrice", t["price"]),					#does this need to be raw?
+			"fields": {}
+		}
+		quoteType = extract("quoteType", t["price"])
+		#fields 0-7 for ETF or Equity quotes
+		if quoteType in ["ETF", "EQUITY"]:
+			extractSharedFields(inner["fields"], t)
+		else:
+			#TODO: handle for other quote types
+			ret[tickerName] = inner
+			continue
+		if live:
+			ret[tickerName] = inner
+			continue
+		#remainder fields
+		inner["fields"]["name"] = extract("longName", t["price"])
+		inner["fields"]["sector"] = extract("sector", t["summaryProfile"])
+		inner["fields"]["summary"] = extract("longBusinessSummary", t["summaryProfile"])
+		inner["fields"]["quoteType"] = quoteType
+		#switch on the quoteType
+		if quoteType == "ETF":
+			# extractSharedFields(inner["fields"], t)
+			#handle fields 8-15
+			inner["fields"]["field8"] = ["Net Assets:", extract("totalAssets", t["summaryDetail"])]
+			inner["fields"]["field9"] = ["NAV:", extract("navPrice", t["summaryDetail"])]
+			inner["fields"]["field10"] = ["PE Ratio (TTM):", extract("trailingPE", t["summaryDetail"])]
+			inner["fields"]["field11"] = ["Yield:", extract("yield", t["summaryDetail"])]
+			inner["fields"]["field12"] = ["YTD Daily Total Return:", extract("ytdReturn", t["defaultKeyStatistics"])]
+			beta = extract("beta", t["defaultKeyStatistics"])
+			if beta == NO_VAL:
+				beta = extract("beta3Year", t["defaultKeyStatistics"])
+			inner["fields"]["field13"] = ["Beta (5Y Monthly):", beta]
+			inner["fields"]["field14"] = ["Expense Ratio (net):", extract("annualReportExpenseRatio", extract("feesExpensesInvestment", t["fundProfile"], format_key=None))]
+			inner["fields"]["field15"] = ["Inception Date:", extract("fundInceptionDate", t["defaultKeyStatistics"])]
+		elif quoteType == "EQUITY":
+			inner["fields"]["quoteType"] = "Equity"
+			# extractSharedFields(inner["fields"], t)
+			#handle fields 8-15
+			inner["fields"]["field8"] = ["Market Cap:", extract("marketCap", t["summaryDetail"])]
+			beta = extract("beta", t["defaultKeyStatistics"])
+			if beta == NO_VAL:
+				beta = extract("beta3Year", t["defaultKeyStatistics"])
+			inner["fields"]["field9"] = ["Beta (5Y Monthly):", beta]
+			inner["fields"]["field10"] = ["PE Ratio (TTM):", extract("trailingPE", t["summaryDetail"])]
+			inner["fields"]["field11"] = ["EPS (TTM):", extract("trailingEps", t["defaultKeyStatistics"])]
+			earningsRange = extract("earningsDate", extract("earningsDate", t["calendarEvents"], format_key=None), format_key=None)
+			if earningsRange != NO_VAL and isinstance(earningsRange, list):
+				if len(earningsRange) > 1:
+					earningsRange = "{} - {}".format(earningsRange[0]["fmt"], earningsRange[-1]["fmt"])
+				else:
+					earningsRange = "{}".format(earningsRange[0]["fmt"])
+			else:
+				earningsRange = NO_VAL
+			inner["fields"]["field12"] = ["Earnings Date:", earningsRange]
+			dividendRate = extract("dividendRate", t["summaryDetail"])
+			dividendYield = extract("dividendYield", t["summaryDetail"])
+			if dividendRate != NO_VAL and dividendYield != NO_VAL:
+				dividendQuote = "{} ({})".format(dividendRate, dividendYield)
+			else:
+				dividendQuote = NO_VAL
+			inner["fields"]["field13"] = ["Fwd Div & Yield:", dividendQuote]
+			inner["fields"]["field14"] = ["Ex-Dividend Date:", extract("exDividendDate", t["summaryDetail"])]
+			inner["fields"]["field15"] = ["1y Target Est:", extract("targetMeanPrice", t["financialData"])]
+		elif quoteType == "MUTUALFUND":
+			inner["fields"]["quoteType"] = "Mutual Fund"
+			#TODO: fill fields
+
+		ret[tickerName] = inner
+	return ret
+
+def getQuoteInfo(dataStore, live=False, period="1y", start=None, end=None, interval="1d"):
+	#build ticker object
+	ticker = yahooquery.Ticker([i["ticker"] for i in dataStore], formatted=True, asynchronous=True)
+	# print("created ticker obj:", list(ticker.symbols), "base:", [i["ticker"] for i in dataStore])
+	# print("test info:", ticker.get_modules(["price", "summaryDetail"]))
+	#get info and history
+	myInfo = extractInfo(ticker, live=live)
+	# print(myInfo)
+	myHist = extractHistory(ticker, period=period, interval=interval, start=start, end=end)
+
+	#merge info and history into dataStore (is a list)
+	for i in dataStore:
+		tickerName = i["ticker"]
+		# print(myHist[tickerName])
+		# print(myInfo[tickerName])
+		i["data"] = {
+			"history": myHist[tickerName],
+			**(myInfo[tickerName])
+		}
 
 class ApiGateway(object):
 
@@ -413,6 +809,33 @@ class ApiGateway(object):
 
 	@cherrypy.expose
 	@cherrypy.tools.json_in()
+	@authUser
+	def removeStock(self):
+		'''
+		Removes a ticker from the database, if present
+
+		Expected input:
+		{
+			"ticker": (str)
+		}
+
+		Returns none
+		'''
+		if hasattr(cherrypy.request, "json"):
+			data = cherrypy.request.json
+		else:
+			raise cherrypy.HTTPError(400, "No data was given")
+
+		#sanitize
+		myRequest = m_utils.checkValidData("ticker", data, str)
+
+		try:
+			self.stockDB().delete_one({"ticker": myRequest})
+		except:
+			raise cherrypy.HTTPError(400, "Failed to delete ticker")
+
+	@cherrypy.expose
+	@cherrypy.tools.json_in()
 	@cherrypy.tools.json_out()
 	@authUser
 	def getStock(self):
@@ -470,6 +893,7 @@ class ApiGateway(object):
 								"fundInceptionDate": (int) or None,	#None if EQUITY
 								"Earnings Date": (str)				#None if ETF
 							},
+							"fields": {"field0": [...], ...},
 							"change": (double),
 							"changePercent": (str),
 							"lastPrice": (double)
@@ -487,10 +911,11 @@ class ApiGateway(object):
 			raise cherrypy.HTTPError(400, "No data was given")
 
 		#sanitize
-		myRequest, sortOrder, period, interval = m_utils.createGetStockQuery(data)
+		# myRequest, sortOrder, period, interval, myTickerObj, _ = m_utils.createGetStockQuery(data, tickerOpt=True, ownOpt=True, starOpt=True, notesOpt=True)
+		myRequest, sortOrder, dateInfo, myTickerObj, _ = m_utils.createGetStockQuery(data, tickerOpt=True, ownOpt=True, starOpt=True, notesOpt=True)
 
 		# period = "6mo"
-		period = "1y"
+		# period = "1y"
 		# interval = "1d"
 
 		#query and return
@@ -510,29 +935,33 @@ class ApiGateway(object):
 		if myCount == 0:
 			return {"data": myTickers, "count": 0}
 
-		#setup threads
-		threadCount = min([myCount, os.cpu_count() * 2])
-		start = time.perf_counter()
+		# print("getting quote info")
+		# getQuoteInfo(myTickers, period=period, interval=interval)
+		getQuoteInfo(myTickers, **dateInfo)
 
-		#need to get each ticker's price and compute change (both value and percent)
-		#use threads for now since it seems to be more consistent
+		# #setup threads
+		# threadCount = min([myCount, os.cpu_count() * 2])
+		# start = time.perf_counter()
 
-		with concurrent.futures.ThreadPoolExecutor(max_workers=threadCount) as executor:
-			# for t in myTickers:
-			# 	print("submitting", t)
-			# 	future = executor.submit(self.extractInfo, t["ticker"], period, interval)
-			# 	t["data"] = future.result()
-			myTickerArgs = ({"ticker": x["ticker"], "period": period, "interval": interval} for x in myTickers)
-			for t, res in zip(myTickers, executor.map(extractInfo, myTickerArgs)):
-				t["data"] = res
+		# #need to get each ticker's price and compute change (both value and percent)
+		# #use threads for now since it seems to be more consistent
 
-		# with concurrent.futures.ProcessPoolExecutor(max_workers=threadCount) as executor:
-		# 	print("about to submit:", period, interval)
+		# with concurrent.futures.ThreadPoolExecutor(max_workers=threadCount) as executor:
+		# 	# for t in myTickers:
+		# 	# 	print("submitting", t)
+		# 	# 	future = executor.submit(self.extractInfo, t["ticker"], period, interval)
+		# 	# 	t["data"] = future.result()
 		# 	myTickerArgs = ({"ticker": x["ticker"], "period": period, "interval": interval} for x in myTickers)
 		# 	for t, res in zip(myTickers, executor.map(extractInfo, myTickerArgs)):
 		# 		t["data"] = res
 
-		print("done waiting", time.perf_counter() - start)
+		# # with concurrent.futures.ProcessPoolExecutor(max_workers=threadCount) as executor:
+		# # 	print("about to submit:", period, interval)
+		# # 	myTickerArgs = ({"ticker": x["ticker"], "period": period, "interval": interval} for x in myTickers)
+		# # 	for t, res in zip(myTickers, executor.map(extractInfo, myTickerArgs)):
+		# # 		t["data"] = res
+
+		# print("done waiting", time.perf_counter() - start)
 
 		#sort if not already sorted
 		if not ordered:
@@ -547,7 +976,7 @@ class ApiGateway(object):
 			sortInfo = sortDict[sortOrder]
 			myTickers = sorted(myTickers, key=itemgetter(sortInfo[0]), reverse=sortInfo[1])
 
-		print("returning")
+		# print("returning")
 		return {"data": myTickers, "count": myCount}
 
 	@cherrypy.expose
@@ -556,24 +985,34 @@ class ApiGateway(object):
 	@authUser
 	def getStockData(self):
 		"""
-		Returns stock data based on the ticker. Only gives historical data, not stock info
+		Returns stock data based on the ticker. Only gives data that may change during the day instead of the full fields
 
 		Expected input:
 		{
 			"ticker": [(string)],
-			"period": (string) (1d, 3d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max),
+			"period": (string) (1d, 3d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max) (optional if start given),
+			"start": (string) (YYYY-MM-DD) (optional if period given),
+			"end": (string) (YYYY-MM-DD) (optional),
 			"interval": (string) (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo)
 		}
 		Returns:
+		# {
+		# 	"data": [
+		# 		{
+		# 			"ticker": (string),
+		# 			//"info": yfinance.info,	//full info, probably not useful?
+		# 			"fields": {"field0": [...], ...},	//not full info
+		# 			"history": {date: [open, high, low, div, split], ...},
+		# 		},
+		# 		...
+		# 	]
+		# }
 		{
-			"data": [
-				{
-					"ticker": (string),
-					//"info": yfinance.info,	//full info, probably not useful?
-					"history": {date: [open, high, low, div, split], ...},
-				},
-				...
-			]
+			"history": ...,
+			"fields": ...,
+			"change": ...,
+			"changePercent": ...,
+			"lastPrice": ...
 		}
 		"""
 		if hasattr(cherrypy.request, "json"):
@@ -582,66 +1021,134 @@ class ApiGateway(object):
 			raise cherrypy.HTTPError(400, "No data was given")
 
 		#sanitize
-		myRequest, _, period, interval = m_utils.createGetStockQuery(data)
+		# myTicker, _, period, interval, myTickerObj, myTickerList = m_utils.createGetStockQuery(data, ownOpt=True, starOpt=True, notesOpt=True, tickerCreate=True, skipDBCheck=True)
+		myTicker, _, dateInfo, myTickerObj, myTickerList = m_utils.createGetStockQuery(data, ownOpt=True, starOpt=True, notesOpt=True, tickerCreate=True, skipDBCheck=True)
 
-		myTickers = [x["ticker"] for x in myRequest]
+		# myRequest = {
+		# 	"ticker": myTicker,
+		# 	"period": period,
+		# 	"interval": interval
+		# }
+		# ret = quickExtractInfo(myRequest)
 
-		if len(myTickers) == 0:
-			return {"data": []}
+		# ret = {
+		# 	"data": [{"ticker": t} for t in myTickerList]
+		# }
+		# print("getStockData ret:", ret)
+		myStock = [{"ticker": t} for t in myTickerList]
+		# getQuoteInfo(myStock, period=period, interval=interval)
+		getQuoteInfo(myStock, **dateInfo)
+		# print(myStock)
 
-		#download and transform
-		history = numpy.round(yfinance.download(myTickers, period=period, interval=interval, progress=False, \
-			group_by="ticker", actions=False), 3)
-		# try:
-		# 	if "Date" in history:
-		# 		history = history.tz_localize(TZ)
-		# 	if "Datetime" in history:
-		# 		history = history.tz_convert(TZ)
-		# 	history = history.reset_index()
-		# except:
-		# 	print("failed to convert data to", TZ)
-		history = history.reset_index()
-		key = ""
-		if "Date" in history:
-			# history["Datetime"] = history["Date"].apply(lambda x: str(x.date()) + CLOSE_TIME)
-			history["Date"] = history["Date"].apply(lambda x: str(x.date()))		#leave as Datetime? YYYY-MM-DD
-			key = "Date"
-		elif "Datetime" in history:
-			history["Datetime"] = history["Datetime"].apply(lambda x: str(x))		#YYYY-MM-DD HH:MM:SS-06:00, where -06:00 is TZ
-			key = "Datetime"
+		# print(list([x, type(x)] for x in myStock[0]["data"]["history"]))
 
-		myData = []
-		if len(myTickers) == 1:	#cannot refer to each ticker since no subindex
-			myData += {"ticker": myTickers[0], "history": history.to_dict("records")}
-		else:
-			for ticker in myTickers:
-				myT = {"ticker": ticker}
-				h = history[[key, ticker]]
-				h.columns = h.columns.droplevel()
-				myT["history"] = h.rename(columns={"": key}).to_dict("records")
-				myData += myT
+		# del myStock[0]["data"]["history"]
+		try:
+			return {
+				"data": myStock
+			}
+		except:
+			print("exception!")
+			return
 
-		return {"data": myData}
+		# myTickers = [x["ticker"] for x in myRequest]
 
-	def searchHelper(self, text):
+		# myCount = len(myTickers)
+		# if myCount == 0:
+		# 	return {"data": []}
+
+		# #setup threads
+		# threadCount = min([myCount, os.cpu_count() * 2])
+		# start = time.perf_counter()
+
+		# #need to get each ticker's price and compute change (both value and percent)
+		# #use threads for now since it seems to be more consistent
+
+		# with concurrent.futures.ThreadPoolExecutor(max_workers=threadCount) as executor:
+		# 	# for t in myTickers:
+		# 	# 	print("submitting", t)
+		# 	# 	future = executor.submit(self.extractInfo, t["ticker"], period, interval)
+		# 	# 	t["data"] = future.result()
+		# 	# myTickerArgs = ({"ticker": x["ticker"], "start": start, "end": end, "period": period, "interval": interval} for x in myTickers)
+		# 	myTickerArgs = ({"ticker": x["ticker"], "period": period, "interval": interval} for x in myTickers)
+		# 	for t, res in zip(myTickers, executor.map(quickExtractInfo, myTickerArgs)):
+		# 		t["data"] = res
+
+		# # with concurrent.futures.ProcessPoolExecutor(max_workers=threadCount) as executor:
+		# # 	print("about to submit:", period, interval)
+		# # 	myTickerArgs = ({"ticker": x["ticker"], "period": period, "interval": interval} for x in myTickers)
+		# # 	for t, res in zip(myTickers, executor.map(extractInfo, myTickerArgs)):
+		# # 		t["data"] = res
+
+		# print("done waiting", time.perf_counter() - start)
+
+		# return {"data": myTickers}
+
+
+		# #download and transform
+		# history = numpy.round(yfinance.download(myTickers, period=period, interval=interval, progress=False, \
+		# 	group_by="ticker", actions=False), 3)
+		# # try:
+		# # 	if "Date" in history:
+		# # 		history = history.tz_localize(TZ)
+		# # 	if "Datetime" in history:
+		# # 		history = history.tz_convert(TZ)
+		# # 	history = history.reset_index()
+		# # except:
+		# # 	print("failed to convert data to", TZ)
+		# history = history.reset_index()
+		# key = ""
+		# if "Date" in history:
+		# 	# history["Datetime"] = history["Date"].apply(lambda x: str(x.date()) + CLOSE_TIME)
+		# 	history["Date"] = history["Date"].apply(lambda x: str(x.date()))		#leave as Datetime? YYYY-MM-DD
+		# 	key = "Date"
+		# elif "Datetime" in history:
+		# 	history["Datetime"] = history["Datetime"].apply(lambda x: str(x))		#YYYY-MM-DD HH:MM:SS-06:00, where -06:00 is TZ
+		# 	key = "Datetime"
+
+		# myData = []
+		# if len(myTickers) == 1:	#cannot refer to each ticker since no subindex
+		# 	myData += {"ticker": myTickers[0], "history": history.to_dict("records")}
+		# else:
+		# 	for ticker in myTickers:
+		# 		myT = {"ticker": ticker}
+		# 		h = history[[key, ticker]]
+		# 		h.columns = h.columns.droplevel()
+		# 		myT["history"] = h.rename(columns={"": key}).to_dict("records")
+		# 		myData += myT
+
+		# return {"data": myData}
+
+	# def searchHelper(self, text):
+	# 	"""
+	# 	Helper method to convert text to correct format
+	# 	"""
+	# 	lookup = {
+	# 		"etfs": "ETF",
+	# 		"stocks": "Equity",
+	# 		"indices": "Index",
+	# 		"funds": "Fund",
+	# 		"commodities": "Commodity",
+	# 		"currencies": "Currency",
+	# 		"crypto": "Crypto",
+	# 		"bonds": "Bond",
+	# 		"certificates": "Certificate",
+	# 		"fxfutures": "Future"
+	# 	}
+	# 	if text in lookup:
+	# 		return lookup[text]
+	# 	return text.title()
+
+	def searchHelper(self, key, data, key2=None):
 		"""
-		Helper method to convert text to correct format
+		helper method to extract info from search results
 		"""
-		lookup = {
-			"etfs": "ETF",
-			"stocks": "Equity",
-			"indices": "Index",
-			"funds": "Fund",
-			"commodities": "Commodity",
-			"currencies": "Currency",
-			"crypto": "Crypto",
-			"bonds": "Bond",
-			"certificates": "Certificate",
-			"fxfutures": "Future"
-		}
-		if text in lookup:
-			return lookup[text]
-		return text.title()
+		# print(key, data)
+		if key in data:
+			return data[key]
+		if key2 in data:
+			return data[key2]
+		return NO_VAL
 
 	@cherrypy.expose
 	@cherrypy.tools.json_in()
@@ -679,19 +1186,72 @@ class ApiGateway(object):
 
 		#sanitize
 		searchTerm = m_utils.checkValidData("data", data, str)
+		firstTerm = m_utils.checkValidData("first", data, bool, optional=True, default=False)
 
-		results = investpy.search.search_quotes(searchTerm, n_results=6)
+		print("searching for {}, first: {}".format(searchTerm, firstTerm))
 
-		ret = []
-		for r in results:
-			ret.append({
-				"exchange": r.exchange,
-				"name": r.name,
-				"type": self.searchHelper(r.pair_type),
-				"ticker": r.symbol
+		# results = investpy.search.search_quotes(searchTerm, n_results=6)
+
+		# ret = []
+		# for r in results:
+		# 	ret.append({
+		# 		"exchange": r.exchange,
+		# 		"name": r.name,
+		# 		"type": self.searchHelper(r.pair_type),
+		# 		"ticker": r.symbol
+		# 	})
+
+		try:
+			results = yahooquery.search(searchTerm, quotes_count=6, news_count=0, first_quote=firstTerm)
+		except:
+			#failed to query yahoo
+			if firstTerm:
+				#attempt to return ticker data for text term
+				try:
+					return {"data": self.checkStockHelper({"ticker": searchTerm}, searchTerm)}
+				except:
+					raise cherrypy.HTTPError(400, "Yahoo search down, invalid ticker")
+			else:
+				raise cherrypy.HTTPError(400, "Yahoo search down")
+		# print("search results:", results)
+		if firstTerm:
+			#grab the data for the ticker and return that
+			ticker = self.searchHelper("symbol", results)
+			if ticker == NO_VAL:
+				raise cherrypy.HTTPError(400, "Invalid ticker")
+			pass
+			myStock = self.checkStockHelper({"ticker": ticker}, ticker)
+			return {"data": myStock}
+		else:
+			ret = []
+			for r in results["quotes"]:
+				ret.append({
+					"exchange": self.searchHelper("exchange", r),
+					"name": self.searchHelper("longname", r, "shortname"),
+					"type": self.searchHelper("typeDisp", r, "quoteType"),
+					"ticker": self.searchHelper("symbol", r)
+				})
+
+			return {"data": ret}
+
+	def checkStockHelper(self, myRequest, ticker, period="1y", interval="1d"):
+		myStock = list(self.stockDB().find(myRequest, {"_id": False}))
+		if len(myStock) == 0:	#default
+			print("check stock default")
+			myStock.append({
+				"ticker": ticker,
+				"own": False,
+				"star": False,
+				"indb": False,
+				"notes": ""
 			})
+		else:
+			print("check stock exist")
+			myStock = [myStock[0]]	#only return first entry
+		# myStock["data"] = extractInfo({"ticker": myRequest["ticker"], "period": period, "interval": interval})
 
-		return {"data": ret}
+		getQuoteInfo(myStock, period=period, interval=interval)
+		return myStock
 
 	@cherrypy.expose
 	@cherrypy.tools.json_in()
@@ -700,7 +1260,7 @@ class ApiGateway(object):
 	def checkStock(self):
 		"""
 		Checks if the specified ticker is in the database, and return its properties if it exists.
-		Otherwise, return false. Also returns stock info.
+		Otherwise, return false for the database fields. Also returns stock info.
 
 		Expected input:
 		{
@@ -731,22 +1291,29 @@ class ApiGateway(object):
 			raise cherrypy.HTTPError(400, "No data was given")
 
 		#sanitize
-		myRequest, _, period, interval = m_utils.createGetStockQuery(data, skipDBCheck=True)
-		myRequest = {"ticker": m_utils.checkValidData("ticker", data, str).upper()}
+		# myRequest, _, period, interval, myTickerObj, myTickerList = m_utils.createGetStockQuery(data, ownOpt=True, starOpt=True, notesOpt=True, skipDBCheck=True)
+		myRequest, _, dateInfo, myTickerObj, myTickerList = m_utils.createGetStockQuery(data, ownOpt=True, starOpt=True, notesOpt=True, skipDBCheck=True)
+		# print("check stock myRequest:", myRequest)
+		# myRequest = {"ticker": myRequest}
 
 		#find
-		myStock = self.stockDB().find(myRequest, {"_id": False})
+		# myStock = list(self.stockDB().find(myRequest, {"_id": False}))
 
-		if myStock.count() == 0:	#default
-			myStock = {
-				"ticker": myRequest["ticker"],
-				"own": False,
-				"star": False,
-				"indb": False,
-				"notes": ""
-			}
-		else:
-			myStock = list(myStock)[0]
-		myStock["data"] = extractInfo({"ticker": myRequest["ticker"], "period": period, "interval": interval})
+		myStock = self.checkStockHelper(myRequest, myTickerList[0])		#don't need to specify dateInfo because this is only used for searching
+
+		# if myStock.count() == 0:	#default
+		# 	myStock = [{
+		# 		"ticker": myTickerList[0],
+		# 		"own": False,
+		# 		"star": False,
+		# 		"indb": False,
+		# 		"notes": ""
+		# 	}]
+		# else:
+		# 	myStock = [list(myStock)[0]]	#only return first entry
+		# # myStock["data"] = extractInfo({"ticker": myRequest["ticker"], "period": period, "interval": interval})
+
+		# getQuoteInfo(myStock, period=period, interval=interval)
+		# # print(myStock)
 
 		return {"data": myStock}

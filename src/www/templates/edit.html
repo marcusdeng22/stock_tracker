@@ -1,0 +1,54 @@
+<div id="editDiv" ng-controller="editCtrl as $ctrl">
+	<ul class="nav nav-tabs" role="tablist">
+		<li class="nav-item"><a class="nav-link active" data-toggle="tab" data-target=".existingSongSearch" role="tab">Songs</a></li>
+		<li class="nav-item"><a class="nav-link" data-toggle="tab" data-target=".addNewSong" role="tab">Add New Song</a></li>
+	</ul>
+
+	<div class="tab-content">
+		<div id="existingSongSearch" class="existingSongSearch tab-pane show active" role="tabpanel">
+			<div>
+				<input type="text" id="songNameSearch" ng-model="songNameSearch" ng-model-options='{debounce: 500}' ng-change="advSearch()" placeholder="Search for song name" style="width: 100%;">
+				<a data-toggle="collapse" data-target=".songCollapse" href="">Advanced Search</a>
+				<div class="songCollapse collapse" style="padding-bottom: 10px;">
+					<div id="songDatePicker" class="input-daterange input-group" style="z-index: 1;">
+						<span class="input-group-addon">Dates:</span>
+						<input type="text" class="input-sm form-control" name="start" id="songStartDate" ng-model="songStartDate"/>
+						<span class="input-group-addon">to</span>
+						<input type="text" class="input-sm form-control" name="end" id="songEndDate" ng-model="songEndDate"/>
+						<span class="input-group-addon">AND</span>
+					</div>
+					<div class="input-group">
+						<span class="input-group-addon">Includes artists:</span>
+						<div data-tip="Use semicolons to separate entries">
+							<input type="text" id="songArtistSearch" class="input-sm form-control" ng-model="songArtistSearch">
+						</div>
+						<!--TODO: add a drop down for artists-->
+					</div>
+					<div class="input-group">
+						<button type="button" id="advSearchBtn" ng-click="advSearch()">Search</button>
+					</div>
+				</div>
+			</div>
+			<div>
+				<button type="button" ng-click="sortBy('name')">Name<img ng-class="sortGlyph('name')" style="left: 2px;"></img></button>
+				<button type="button" ng-click="sortBy('relev')">Relevance<img ng-class="sortGlyph('relev')" style="left: 2px;"></img></button>
+				<button type="button" ng-click="sortBy('date')" style="float: right;">Date<img ng-class="sortGlyph('date')" style="left: 2px;"></img></button>
+			</div>
+			<div class="sortableDataContainer songCollapse collapse show">
+				<div ui-sortable="sortablePlaylist" ng-model="songData" id="songSelect" class="list" style="width: 100%; min-height: 100%;">
+					<div ui-sortable-selectable ng-repeat="item in songData" class="item songItem">
+						<div style="width: 100%; display: table; table-layout: fixed;">
+							<div style="width: 100%; display: table-row;">
+								<div style="width: calc(100% - 80px); display: table-cell; overflow: hidden;">{{item.name}}</div>
+								<div style="width: 80px; display: table-cell;">{{item.dateStr}}</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="addNewSong" class="addNewSong tab-pane" role="tabpanel">
+			<p>new song here</p>
+		</div>
+	</div>
+</div>

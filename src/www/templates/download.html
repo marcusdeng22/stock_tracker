@@ -1,0 +1,46 @@
+<div ng-controller="downloadCtrl as $ctrl" dw-loading="downloadCtrl" dw-loading-options="{text: 'Preparing...'}" style="padding: 10px; width: 100%; height: 100%;" ng-off-close="closeDownload()">
+	<p>Downloading {{data.songs.length}} song{{(data.songs.length > 1) ? 's' : ''}}</p>
+	<div class="form-group input-group">
+		<span class="input-group-addon">Name:</span>
+		<input type="text" class="input-group form-control" ng-model="downloadName" ng-model-options='{debounce: 500}' ng-change="cleanData()" placeholder="Download name">
+	</div>
+	<div class="form-group input-group">
+		<span class="input-group-addon">Artist tag:</span>
+		<select class="form-control" ng-model="artistOptions" ng-change="cleanData()">
+			<option value="First" selected>First Artist</option>
+			<option value="All">All</option>
+			<option value="None">None</option>
+		</select>
+	</div>
+	<div class="form-group input-group">
+		<span class="input-group-addon">Album tag:</span>
+		<select class="form-control" ng-model="albumOptions" ng-change="cleanData()">
+			<option value="Album" selected>Album Name</option>
+			<option value="FirstArtist">First Artist</option>
+			<option value="AllArtists">All Artists</option>
+			<option value="None">None</option>
+		</select>
+	</div>
+	<div class="form-group input-group">
+		<span class="input-group-addon">Genre tag:</span>
+		<select class="form-control" ng-model="genreOptions" ng-change="cleanData()">
+			<option value="Genre" selected>Genre Name</option>
+			<option value="None">None</option>
+		</select>
+	</div>
+	<div class="form-group input-group">
+		<span class="input-group-addon">Format:</span>
+		<select class="form-control" ng-model="outputFormat" ng-change="cleanData()">
+			<option value="mp3" selected>.mp3</option>
+			<option value="mp4">.mp4</option>
+		</select>
+	</div>
+	<div>
+		<button type="button" class="col-md-3 btn btn-success" ng-click="download()" ng-disabled="!readyDownload">Download</button>
+		<button type="button" class="col-md-3 btn btn-danger" ng-click="closeDownload()">Cancel</button>
+	</div>
+	<div id="downloadPathDiv" style="display: none;">
+	<!-- <div id="downloadPathDiv"> -->
+		<!-- <a id="downloadPath" download>download</a> -->
+	</div>
+</div>

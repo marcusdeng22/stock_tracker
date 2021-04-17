@@ -7,19 +7,31 @@ app.controller('researchCtrl', ['$scope', '$rootScope', '$location', '$window', 
 
 		$scope.searching = false;
 
-		$scope.searchTicker = function() {
+		$scope.searchTicker = function(first=false) {
 			if ($scope.searchText.length == 0) {
 				$scope.searchResults = [];
 				return;
 			}
 			//post to server $scope.searchText and store results in $scope.searchResults
-			$scope.searching = true;
+			// $scope.searching = true;
 			//TODO: start a spinner in the results
-			$http.post("/searchText", {data: $scope.searchText}).then(function(resp) {
-				$scope.searching = false;
-				$scope.searchResults = resp["data"]["data"];
+			console.log("searching, first:", first);
+			$http.post("/searchText", {data: $scope.searchText, first: first}).then(function(resp) {
+				// $scope.searching = false;
+				console.log("search resp:", resp.data)
+				if (first) {
+					$scope.searchText = "";
+					$scope.searchResults = [];
+					$scope.ticker = resp["data"]["data"][0];
+				}
+				else {
+					$scope.searchResults = resp["data"]["data"];
+				}
+				if (!$rootScope.$digest) {
+					$scope.$apply();
+				}
 			}, function(err) {
-				$scope.searching = false;
+				// $scope.searching = false;
 				console.log("failed to post /searchText");
 				console.log(err);
 				alert("Failed to search text");
@@ -28,22 +40,22 @@ app.controller('researchCtrl', ['$scope', '$rootScope', '$location', '$window', 
 
 		$scope.submitTicker = function(idx, enter=false) {
 			//TODO: start a spinner in the main view
-			console.log("submitTicker", idx, enter, $scope.searching, $scope.searchText);
-			if (enter) {
-				// console.log("watching");
-				$scope.searching = true;
-				//watch until we are done searching
-				//from: https://stackoverflow.com/questions/15715672/how-do-i-stop-watching-in-angularjs
-				var unregister = $scope.$watch("searching", function() {
-					// console.log("watch hit", $scope.searching);
-					if ($scope.searching == false) {
-						// console.log("watch done");
-						$scope.submitTicker(idx);
-						unregister();
-					}
-				});
-				return;
-			}
+			// console.log("submitTicker", idx, enter, $scope.searching, $scope.searchText);
+			// if (enter) {
+			// 	// console.log("watching");
+			// 	$scope.searching = true;
+			// 	//watch until we are done searching
+			// 	//from: https://stackoverflow.com/questions/15715672/how-do-i-stop-watching-in-angularjs
+			// 	var unregister = $scope.$watch("searching", function() {
+			// 		// console.log("watch hit", $scope.searching);
+			// 		if ($scope.searching == false) {
+			// 			// console.log("watch done");
+			// 			$scope.submitTicker(idx);
+			// 			unregister();
+			// 		}
+			// 	});
+			// 	return;
+			// }
 			if (idx < $scope.searchResults.length) {
 				// console.log($scope.searchResults[idx])
 				//post to server to grab ticker info
@@ -51,8 +63,8 @@ app.controller('researchCtrl', ['$scope', '$rootScope', '$location', '$window', 
 				$scope.searchText = "";
 				$scope.searchResults = [];
 				$http.post("/checkStock", {"ticker": tickerName}).then(function(resp) {
-					// console.log("returned check stock");
-					$scope.ticker = resp["data"]["data"];
+					console.log("checkStock resp:", resp)
+					$scope.ticker = resp["data"]["data"][0];
 				}, function(err) {
 					console.log("failed to post /checkStock");
 					console.log(err);
